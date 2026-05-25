@@ -3,8 +3,13 @@ import Sidebar from "./components/Sidebar.jsx";
 import CanvasPreview from "./components/CanvasPreview.jsx";
 import { CLUBS, DEFAULT_STATE, TEMPLATE_LABELS } from "./data/clubs.js";
 
+const EXPORT_DIMS = {
+  portrait: [1080, 1350],
+  square:   [1080, 1080],
+};
+
 export default function App() {
-  const [state, setState] = useState(DEFAULT_STATE);
+  const [state, setState]         = useState(DEFAULT_STATE);
   const [downloading, setDownloading] = useState(false);
   const canvasRef = useRef(null);
 
@@ -13,7 +18,7 @@ export default function App() {
   }, []);
 
   const onImageLoad = useCallback((src) => {
-    setState(prev => ({ ...prev, imgSrc: src, op: prev.op || 40, sc: prev.sc || 100 }));
+    setState(prev => ({ ...prev, imgSrc: src, op: prev.op || 55, sc: prev.sc || 100 }));
   }, []);
 
   const onImageDelete = useCallback(() => {
@@ -25,26 +30,28 @@ export default function App() {
     if (!src) return;
     setDownloading(true);
 
-    // Export at 2× (1080×1080)
+    const [ew, eh] = EXPORT_DIMS[state.canvasSize] || EXPORT_DIMS.portrait;
     const big = document.createElement("canvas");
-    big.width = 1080; big.height = 1080;
+    big.width  = ew;
+    big.height = eh;
     const bx = big.getContext("2d");
     bx.scale(2, 2);
     bx.drawImage(src, 0, 0);
 
     big.toBlob(blob => {
       const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
+      a.href     = URL.createObjectURL(blob);
       a.download = `omani-league-${state.tpl}-${Date.now()}.png`;
       a.click();
       URL.revokeObjectURL(a.href);
       setDownloading(false);
     }, "image/png", 1);
-  }, [state.tpl]);
+  }, [state.canvasSize, state.tpl]);
 
-  const hc = CLUBS[state.hk];
-  const ac = CLUBS[state.ak];
+  const hc      = CLUBS[state.hk];
+  const ac      = CLUBS[state.ak];
   const tplHint = TEMPLATE_LABELS[state.tpl] || "";
+  const sizeHint = state.canvasSize === "portrait" ? "1080 × 1350" : "1080 × 1080";
 
   return (
     <div style={{ display: "flex", height: "100vh", width: "100%", overflow: "hidden" }}>
@@ -55,6 +62,8 @@ export default function App() {
         onUpdate={onUpdate}
         onImageLoad={onImageLoad}
         onImageDelete={onImageDelete}
+        onDownload={download}
+        downloading={downloading}
       />
 
       {/* Main area */}
@@ -67,7 +76,7 @@ export default function App() {
           flexShrink: 0, background: "#0e0e1c",
         }}>
           <span style={{ fontSize: 10, color: "rgba(255,255,255,.2)", letterSpacing: ".12em" }}>
-            {tplHint} · 1080 × 1080
+            {tplHint} · {sizeHint}
           </span>
           <button
             onClick={download}
@@ -84,7 +93,7 @@ export default function App() {
           </button>
         </div>
 
-        {/* Canvas preview (fills remaining space) */}
+        {/* Canvas preview */}
         <CanvasPreview state={state} canvasRef={canvasRef} />
 
         {/* Bottom chips bar */}
@@ -94,9 +103,9 @@ export default function App() {
           flexShrink: 0, background: "#0e0e1c",
         }}>
           {[hc, ac].map((club, i) => (
-            <>
-              {i === 1 && <span key="vs" style={{ fontSize: 11, color: "rgba(255,255,255,.2)" }}>◆</span>}
-              <div key={club.n} style={{
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              {i === 1 && <span style={{ fontSize: 11, color: "rgba(255,255,255,.2)" }}>◆</span>}
+              <div style={{
                 display: "flex", alignItems: "center", gap: 7,
                 background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.09)",
                 borderRadius: 99, padding: "5px 14px", fontSize: 12, fontWeight: 700,
@@ -104,7 +113,7 @@ export default function App() {
                 <span>{club.b}</span>
                 <span>{club.n}</span>
               </div>
-            </>
+            </div>
           ))}
         </div>
 
