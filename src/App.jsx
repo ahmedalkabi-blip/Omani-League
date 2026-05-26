@@ -389,29 +389,88 @@ function renderFulltime(ctx, S, hImg, aImg, bgImg) {
 }
 
 function renderHalftime(ctx, S, hImg, aImg, bgImg) {
-  const sz=CANVAS_SIZES[S.canvasSize], W=sz.w, H=sz.h;
-  const e=createEngine(ctx,W,H);
-  e.drawBackground(S,bgImg);
-  drawTopStrip(e,S,W);
+  const sz = CANVAS_SIZES[S.canvasSize], W = sz.w, H = sz.h;
+  const e  = createEngine(ctx, W, H);
+  e.drawBackground(S, bgImg);
+  drawTopStrip(e, S, W);
 
-  const { LR, hX, aX, botY } = logoRow(W, H);
+  const { hX, aX, botY } = logoRow(W, H);
+  const LR = R(W * 0.058);          // slightly smaller than other templates
   drawBottomOverlay(ctx, S, W, H, botY);
-  drawCompPill(e, S, W, yAt(H, 0.578));
-  drawStatusBadge(e, S, W, yAt(H, 0.628), "HALF TIME");
 
+  /* Small, clean HALF TIME badge — no comp pill above it */
+  const badgeW = 200, badgeH = 36, badgeY = yAt(H, 0.615);
+  e.rrect(W/2 - badgeW/2, badgeY - R(badgeH/2), badgeW, badgeH, 18, S.accent, null);
+  e.txt("HALF TIME", W/2, badgeY, 18, "#000", "900");
+
+  /* Logo + score row */
   const rowY = yAt(H, 0.718);
-  drawTeamBlock(e, S, "h", hX, rowY, LR, hImg, W);
-  drawTeamBlock(e, S, "a", aX, rowY, LR, aImg, W);
-  drawCenterScore(e, S, W, rowY);
 
-  /* 45' pill below score, in the centre gap */
-  const mpw = 116;
-  e.rrect(W/2 - mpw/2, rowY + 50, mpw, 40, 20, S.accent, null);
-  e.txt("45'", W/2, rowY + 70, 22, "#000","900");
+  /* Helper: draw one logo with reduced glow */
+  function htLogo(cx, club, img) {
+    ctx.save();
+    ctx.shadowColor = club.p; ctx.shadowBlur = 13; ctx.globalAlpha = 0.15;
+    e.circ(cx, rowY, LR + 2, club.p, null);
+    ctx.restore();
+    e.circ(cx, rowY, LR + 5, null, "rgba(255,255,255,.05)", 1);
+    e.circ(cx, rowY, LR + 2, club.s || club.p, null);
+    e.circ(cx, rowY, LR,     "rgba(0,0,0,.35)", null);
+    if (img) {
+      ctx.save();
+      ctx.beginPath(); ctx.arc(cx, rowY, LR - 1, 0, Math.PI * 2); ctx.clip();
+      ctx.drawImage(img, cx - LR + 1, rowY - LR + 1, (LR-1)*2, (LR-1)*2);
+      ctx.restore();
+    } else {
+      ctx.save();
+      ctx.font = `${R(LR*1.12)}px serif`;
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText(club.emoji, cx, rowY);
+      ctx.restore();
+    }
+  }
 
-  const infoY = yAt(H, 0.872);
-  drawInfoRow(e, S, W, infoY);
-  e.line(60, infoY-14, W-60, infoY-14, "rgba(255,255,255,.06)", 1);
+  /* Helper: draw team name block for halftime (tighter, lighter) */
+  function htName(cx, club) {
+    const ny = rowY + LR + 14;
+    if (S.showAr) {
+      e.txt(club.ar, cx, ny,     30, "rgba(0,0,0,.4)", "900", "center", W * 0.27);
+      e.txt(club.ar, cx, ny - 1, 30, "#fff",           "900", "center", W * 0.27);
+    }
+    if (S.showEn) {
+      e.txt(club.en, cx, ny + (S.showAr ? 34 : 0), 12,
+            "rgba(255,255,255,.32)", "600", "center", W * 0.24);
+    }
+    e.rrect(cx - 28, ny + (S.showAr ? 24 : 6), 56, 2, 1, club.s, null);
+  }
+
+  const hClub = getClub(S, "h");
+  const aClub = getClub(S, "a");
+  htLogo(hX, hClub, hImg);
+  htLogo(aX, aClub, aImg);
+  htName(hX, hClub);
+  htName(aX, aClub);
+
+  /* Score — 85 % of user's slider so it reads lighter than Full Time */
+  const ss  = R((parseInt(S.scoreSize) || 130) * 0.85);
+  const gap = R(ss * 0.68);
+  e.txtStroke(S.hScore || "0", W/2 - gap, rowY, ss, "#fff", "rgba(0,0,0,.55)", "900");
+  const cbw = 40, cbh = R(ss * 0.55);
+  e.rrect(W/2 - cbw/2, rowY - R(cbh/2), cbw, cbh, 5, S.accent, null);
+  e.txt("—", W/2, rowY, R(ss * 0.28), "#000", "900");
+  e.txtStroke(S.aScore || "0", W/2 + gap, rowY, ss, "#fff", "rgba(0,0,0,.55)", "900");
+
+  /* 45' pill — small, borderline, no solid fill */
+  const pillY = rowY + 58;
+  e.rrect(W/2 - 44, pillY - 14, 88, 28, 14, "rgba(0,0,0,.42)", S.accent + "55", 1);
+  e.txt("45'", W/2, pillY, 15, S.accent, "700");
+
+  /* Single thin info line — venue · round, no heavy boxes */
+  const infoY = yAt(H, 0.885);
+  e.line(60, infoY - 12, W - 60, infoY - 12, "rgba(255,255,255,.06)", 1);
+  const infoParts = [S.venue && "📍 "+S.venue, S.round && "🏆 "+S.round].filter(Boolean);
+  e.txt(infoParts.join("   ·   "), W/2, infoY + 6, 17,
+        "rgba(255,255,255,.42)", "600", "center", W - 120);
+
   drawFooter(e, S, W, H, hImg, aImg);
 }
 
