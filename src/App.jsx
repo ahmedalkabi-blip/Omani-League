@@ -173,29 +173,36 @@ function createEngine(ctx, W, H) {
   }
 
   function drawLogo(img, emoji, cx, cy, r, ringColor, ringColor2) {
+    /* ── Outer glow — identical strength for every club ── */
     ctx.save();
-    ctx.shadowColor=ringColor; ctx.shadowBlur=28; ctx.globalAlpha=0.32;
-    circ(cx,cy,r+2,ringColor,null);
+    ctx.shadowColor = ringColor; ctx.shadowBlur = 20; ctx.globalAlpha = 0.22;
+    circ(cx, cy, r + 2, ringColor, null);
     ctx.restore();
-    circ(cx,cy,r+7, null,"rgba(255,255,255,.07)",16);
-    circ(cx,cy,r+3, ringColor2||ringColor,null);
-    circ(cx,cy,r,   "rgba(0,0,0,.35)",null);
+
+    /* ── Club-colour accent ring ── */
+    circ(cx, cy, r + 3, ringColor2 || ringColor, null);   // solid fill to r+3
+    circ(cx, cy, r - 1, "#09090f",              null);    // dark gap → ring width = 4px
+
+    /* ── Neutral off-white badge face — same for every club ── */
+    const face = r - 3;                                   // 2px shadow gap inside ring
+    circ(cx, cy, face, "rgba(242,242,240,1)", null);
+
     if (img) {
-      ctx.save();
-      ctx.beginPath(); ctx.arc(cx,cy,r-1,0,Math.PI*2); ctx.clip();
-      /* contain — fit the logo inside ~78% of the circle radius with padding */
-      const inner = R((r - 1) * 0.78) * 2;          // available diameter
+      /* Contain: logo fits inside 76% of face diameter — no stretch, no crop */
+      const innerD = R(face * 0.76) * 2;
       const iw = img.naturalWidth  || img.width  || 1;
       const ih = img.naturalHeight || img.height || 1;
-      const scale = Math.min(inner / iw, inner / ih); // maintain aspect ratio
+      const scale = Math.min(innerD / iw, innerD / ih);
       const sw = R(iw * scale), sh = R(ih * scale);
-      ctx.drawImage(img, R(cx - sw/2), R(cy - sh/2), sw, sh);
+      ctx.save();
+      ctx.beginPath(); ctx.arc(cx, cy, face - 1, 0, Math.PI * 2); ctx.clip();
+      ctx.drawImage(img, R(cx - sw / 2), R(cy - sh / 2), sw, sh);
       ctx.restore();
     } else {
       ctx.save();
-      ctx.font=`${R(r*1.12)}px serif`;
-      ctx.textAlign="center"; ctx.textBaseline="middle";
-      ctx.fillText(emoji,cx,cy);
+      ctx.font = `${R(face * 0.85)}px serif`;
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText(emoji, cx, cy);
       ctx.restore();
     }
   }
@@ -457,29 +464,6 @@ function renderHalftime(ctx, S, hImg, aImg, bgImg) {
   /* Logo + score row */
   const rowY = yAt(H, 0.718);
 
-  /* Helper: draw one logo with reduced glow */
-  function htLogo(cx, club, img) {
-    ctx.save();
-    ctx.shadowColor = club.p; ctx.shadowBlur = 13; ctx.globalAlpha = 0.15;
-    e.circ(cx, rowY, LR + 2, club.p, null);
-    ctx.restore();
-    e.circ(cx, rowY, LR + 5, null, "rgba(255,255,255,.05)", 1);
-    e.circ(cx, rowY, LR + 2, club.s || club.p, null);
-    e.circ(cx, rowY, LR,     "rgba(0,0,0,.35)", null);
-    if (img) {
-      ctx.save();
-      ctx.beginPath(); ctx.arc(cx, rowY, LR - 1, 0, Math.PI * 2); ctx.clip();
-      ctx.drawImage(img, cx - LR + 1, rowY - LR + 1, (LR-1)*2, (LR-1)*2);
-      ctx.restore();
-    } else {
-      ctx.save();
-      ctx.font = `${R(LR*1.12)}px serif`;
-      ctx.textAlign = "center"; ctx.textBaseline = "middle";
-      ctx.fillText(club.emoji, cx, rowY);
-      ctx.restore();
-    }
-  }
-
   /* Helper: draw team name block for halftime (tighter, lighter) */
   function htName(cx, club) {
     const ny = rowY + LR + 14;
@@ -496,8 +480,8 @@ function renderHalftime(ctx, S, hImg, aImg, bgImg) {
 
   const hClub = getClub(S, "h");
   const aClub = getClub(S, "a");
-  htLogo(hX, hClub, hImg);
-  htLogo(aX, aClub, aImg);
+  e.drawLogo(hImg, hClub.emoji, hX, rowY, LR, hClub.p, hClub.s);
+  e.drawLogo(aImg, aClub.emoji, aX, rowY, LR, aClub.p, aClub.s);
   htName(hX, hClub);
   htName(aX, aClub);
 
