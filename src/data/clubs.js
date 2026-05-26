@@ -37,4 +37,6 @@ export const DEFAULT_STATE = {
   op:         85,
   sc:         100,
   canvasSize: "portrait",
+  possession: "55 - 45",
+  shots:      "8 - 4",
 };

@@ -122,6 +122,11 @@ function parseScore(score) {
   return [parts[0]?.trim() || "0", parts[1]?.trim() || "0"];
 }
 
+function parseStat(val) {
+  const parts = (val || "50 - 50").split(/\s*[-–]\s*/);
+  return [Math.max(0, parseInt(parts[0]) || 0), Math.max(0, parseInt(parts[1]) || 0)];
+}
+
 /* ── Club logo circle with soft glow ──────────────────────────────────── */
 function logoCircle(ctx, x, y, r, club) {
   ctx.save();
@@ -304,23 +309,26 @@ export function drawMatchDay(ctx, S, hc, ac, uImg, W = 540, H = 675) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
-   FINAL SCORE — Cinematic editorial poster
+   FINAL SCORE — Sports broadcast editorial poster
    ─────────────────────────────────────────────────────────────────────
    All positions given in EXPORT px (1080×1350). Internal = export ÷ 2.
    P(n,H) scales any portrait-internal value to current canvas height.
 
    Exact coordinate map (export → internal portrait H=675):
-     "النتيجة النهائية" badge  y=150   → P(75,H)
-     S.status text             y=578   → P(289,H)
-     Logos center              y=680   → P(340,H)  r=38 (export r=76)
-     Score                     y=690   → P(345,H)  font=P(60,H)=120px
-     Accent line               y=770   → P(385,H)
-     Arabic team names         y=930   → P(465,H)  ← key: clearly lower
-     English team names        y=964   → P(482,H)
-     Scorers box               y=1000–1100 → P(500,H)–P(550,H)
-     Match info row            y=1116  → P(558,H)
-     Footer divider            y=1180  → P(590,H)
-     Footer content            y=1256  → P(628,H)
+     Header                    y=76    → P(38,H)
+     "النتيجة النهائية" badge  y=146   → P(73,H)
+     "FULL TIME" status        y=216   → P(108,H)
+     Logos + Score center      y=632   → P(316,H)  r=P(46,H) exp=92
+     Accent line               y=732   → P(366,H)
+     Arabic team names         y=764   → P(382,H)
+     English team names        y=796   → P(398,H)
+     Stadium pill center       y=840   → P(420,H)
+     Stats panel top           y=884   → P(442,H)  h=P(112,H)
+       Possession numbers      y=924   → panelY+P(20,H)
+       Possession bar          y=952   → panelY+P(34,H)
+       Shots numbers           y=1024  → panelY+P(70,H)
+       Scorers                 y=1084  → panelY+P(100,H)
+     Footer bar                y=1136  → P(568,H)
 ═══════════════════════════════════════════════════════════════════════ */
 export function drawFinalScore(ctx, S, hc, ac, uImg, W = 540, H = 675) {
   const cx = W / 2;
@@ -329,9 +337,7 @@ export function drawFinalScore(ctx, S, hc, ac, uImg, W = 540, H = 675) {
   ctx.fillStyle = "#05050d";
   ctx.fillRect(0, 0, W, H);
 
-  /* ── 2. BACKGROUND IMAGE — full canvas, cover fit ──
-        Image covers the entire canvas. The cinematic gradient below
-        provides all darkening — no clip, no sub-zone restriction.  */
+  /* ── 2. BACKGROUND IMAGE — full canvas, cover fit ── */
   if (uImg) {
     const scale = S.sc / 100;
     const f     = Math.max(W / uImg.naturalWidth, H / uImg.naturalHeight) * scale;
@@ -343,9 +349,7 @@ export function drawFinalScore(ctx, S, hc, ac, uImg, W = 540, H = 675) {
     ctx.restore();
   }
 
-  /* ── 3. CINEMATIC GRADIENT — barely dark at top, near-black at bottom ──
-        Reference look: photo clearly visible in the upper half,
-        deep editorial black consuming the lower third.              */
+  /* ── 3. CINEMATIC GRADIENT — light top, near-black bottom ── */
   const cineG = ctx.createLinearGradient(0, 0, 0, H);
   cineG.addColorStop(0.00, "rgba(0,0,0,.14)");
   cineG.addColorStop(0.18, "rgba(0,0,0,.22)");
@@ -357,116 +361,155 @@ export function drawFinalScore(ctx, S, hc, ac, uImg, W = 540, H = 675) {
   ctx.fillStyle = cineG;
   ctx.fillRect(0, 0, W, H);
 
-  /* ── 4. HEADER — date left, round right, badge center ──
-        Export y=80 → P(40,H);  badge y=150 → P(75,H)             */
-  ft(ctx, S.date  || "", 18,      P(40, H), P(10, H), "rgba(255,255,255,.72)", "600", "left");
-  ft(ctx, S.round || "", W - 18,  P(40, H), P(10, H), "rgba(255,255,255,.50)", "600", "right");
+  /* ── 4. HEADER — date left · round right ──
+        Export y=76 → P(38,H)                                      */
+  ft(ctx, S.date  || "", 18,     P(38, H), P(10, H), "rgba(255,255,255,.72)", "600", "left");
+  ft(ctx, S.round || "", W - 18, P(38, H), P(10, H), "rgba(255,255,255,.50)", "600", "right");
 
-  const badgeY = P(75, H);
+  const badgeY = P(73, H);
   roundRect(ctx, cx - P(88, H), badgeY - P(12, H), P(176, H), P(25, H), P(12, H), "#facc15");
   ft(ctx, "النتيجة النهائية", cx, badgeY, P(11, H), "#000", "900");
 
-  /* ── 5. STATUS TEXT — slim label above score ──
-        Export y=578 → P(289,H)                                    */
-  ft(ctx, S.status || "FULL TIME", cx, P(289, H), P(9, H),
-    "rgba(255,255,255,.45)", "400");
+  /* ── 5. STATUS — small label, well above the score ──
+        Export y=216 → P(108,H)                                    */
+  ft(ctx, S.status || "FULL TIME", cx, P(108, H), P(9, H),
+    "rgba(255,255,255,.38)", "400");
 
-  /* ── 6. SCORE BLOCK — dominant visual center ──
-        Logos: homeX=130 (exp 260), awayX=410 (exp 820)
-               logoY=P(340,H) (exp 680), logoR=P(38,H) (exp 76)
-        Score: cx, scoreY=P(345,H) (exp 690), font=P(60,H) (exp 120) */
-  const logoY = P(340, H);
-  const logoR = P(38,  H);
-  const homeX = 130;
-  const awayX = 410;
+  /* ── 6. SCORE BLOCK ──
+        Logos:  homeX=110 (exp 220), awayX=430 (exp 860)
+                logoY=P(316,H) (exp 632), r=P(46,H) (exp 92)
+        Score:  cx, y=P(316,H), font=P(68,H) (exp 136)            */
+  const logoY = P(316, H);
+  const logoR = P(46,  H);
+  const homeX = 110;
+  const awayX = 430;
 
   ctx.save();
   ctx.shadowColor = hc.s;
-  ctx.shadowBlur  = P(24, H);
+  ctx.shadowBlur  = P(26, H);
   circle(ctx, homeX, logoY, logoR, hc.p, hc.s, Math.max(2, P(2, H)));
   ctx.restore();
-  ft(ctx, hc.b, homeX, logoY, Math.round(logoR * 0.78));
+  ft(ctx, hc.b, homeX, logoY, Math.round(logoR * 0.80));
 
   ctx.save();
   ctx.shadowColor = ac.s;
-  ctx.shadowBlur  = P(24, H);
+  ctx.shadowBlur  = P(26, H);
   circle(ctx, awayX, logoY, logoR, ac.p, ac.s, Math.max(2, P(2, H)));
   ctx.restore();
-  ft(ctx, ac.b, awayX, logoY, Math.round(logoR * 0.78));
+  ft(ctx, ac.b, awayX, logoY, Math.round(logoR * 0.80));
 
   const [hs, as]  = parseScore(S.score);
-  const scoreY    = P(345, H);
-  const scoreFont = P(60,  H);
-  const scoreOff  = P(52,  H);
-  ft(ctx, hs, cx - scoreOff, scoreY, scoreFont, "#ffffff", "900");
-  ft(ctx, "–", cx,           scoreY - P(3, H), P(22, H), "#facc15", "300");
-  ft(ctx, as, cx + scoreOff, scoreY, scoreFont, "#ffffff", "900");
+  const scoreFont = P(68,  H);
+  const scoreOff  = P(56,  H);
+  ft(ctx, hs, cx - scoreOff, logoY, scoreFont, "#ffffff", "900");
+  ft(ctx, "—", cx,           logoY - P(2, H), P(22, H), "#facc15", "300");
+  ft(ctx, as, cx + scoreOff, logoY, scoreFont, "#ffffff", "900");
 
-  /* ── 7. ACCENT LINE — separates score from team info ──
-        Export y=770 → P(385,H)                                    */
-  accentDivider(ctx, W, P(385, H), hc, ac, 1.2);
+  /* ── 7. ACCENT LINE ── Export y=732 → P(366,H) */
+  accentDivider(ctx, W, P(366, H), hc, ac, 1.2);
 
-  /* ── 8. ARABIC TEAM NAMES — clearly in the lower section ──
-        Export y=930 → P(465,H).
-        Key correction: names must be low, not near the middle.     */
-  const arNameY = P(465, H);
-  const arFont  = P(22,  H);
-  const arMaxW  = Math.round(W * 0.32);
-  ft(ctx, hc.n, homeX, arNameY, arFont, "#ffffff", "900", "center", arMaxW);
-  ft(ctx, ac.n, awayX, arNameY, arFont, "#ffffff", "900", "center", arMaxW);
+  /* ── 8. TEAM NAMES ──
+        Arabic: P(382,H) exp=764   English: P(398,H) exp=796       */
+  const arMaxW = Math.round(W * 0.30);
+  ft(ctx, hc.n, homeX, P(382, H), P(21, H), "#ffffff", "900", "center", arMaxW);
+  ft(ctx, ac.n, awayX, P(382, H), P(21, H), "#ffffff", "900", "center", arMaxW);
+  ft(ctx, hc.e, homeX, P(398, H), P(9,  H), "rgba(255,255,255,.36)", "400");
+  ft(ctx, ac.e, awayX, P(398, H), P(9,  H), "rgba(255,255,255,.36)", "400");
 
-  /* ── 9. ENGLISH TEAM NAMES ──
-        Export y=964 → P(482,H)                                    */
-  const enNameY = P(482, H);
-  const enFont  = P(9,   H);
-  ft(ctx, hc.e, homeX, enNameY, enFont, "rgba(255,255,255,.36)", "400");
-  ft(ctx, ac.e, awayX, enNameY, enFont, "rgba(255,255,255,.36)", "400");
+  /* ── 9. STADIUM PILL BADGE ──
+        Export y=840 → P(420,H)                                    */
+  const stadW = P(310, H);
+  const stadH = P(26,  H);
+  const stadY = P(420, H);
+  roundRect(ctx, cx - stadW / 2, stadY - stadH / 2, stadW, stadH, P(13, H),
+    "rgba(255,255,255,.10)", "rgba(255,255,255,.22)");
+  ft(ctx, S.stadium || "", cx, stadY, P(10, H),
+    "rgba(255,255,255,.80)", "600", "center", stadW - P(20, H));
 
-  /* ── 10. SCORERS ROW — subtle transparent box ──
-        Export y=1000–1100 → P(500,H)–P(550,H)                    */
-  const scorersY = P(500, H);
-  const scorersH = P(50,  H);
-  const scorersW = P(400, H);
-  roundRect(ctx, cx - scorersW / 2, scorersY, scorersW, scorersH, P(10, H),
-    "rgba(0,0,0,.50)", "rgba(255,255,255,.10)");
+  /* ── 10. STATS PANEL ──
+        Export y=884 → P(442,H), h=P(112,H) exp=224               */
+  const panelY = P(442, H);
+  const panelH = P(112, H);
+  const panelW = W - P(36, H);
+  roundRect(ctx, cx - panelW / 2, panelY, panelW, panelH, P(10, H),
+    "rgba(0,0,0,.55)", "rgba(255,255,255,.08)");
 
-  ft(ctx, "الهدافون", cx, scorersY + P(13, H), P(8.5, H),
-    "rgba(255,255,255,.35)", "600");
+  const barW  = panelW - P(72, H);
+  const barX  = cx - barW / 2;
+  const numLX = barX - P(6, H);
+  const numRX = barX + barW + P(6, H);
+  const barH  = P(6, H);
+
+  /* Possession row */
+  const [hp, ap] = parseStat(S.possession);
+  const posTotal = (hp + ap) || 100;
+  const homePct  = Math.round(hp / posTotal * 100);
+  const awayPct  = 100 - homePct;
+  const posNumY  = panelY + P(20, H);
+  const posBarY  = panelY + P(34, H);
+
+  ft(ctx, `${homePct}%`, numLX, posNumY, P(13, H), "#ffffff", "900", "right");
+  ft(ctx, "POSSESSION",  cx,    posNumY, P(7.5, H), "rgba(255,255,255,.38)", "700");
+  ft(ctx, `${awayPct}%`, numRX, posNumY, P(13, H), "#ffffff", "900", "left");
+
+  roundRect(ctx, barX, posBarY, barW, barH, P(3, H), "rgba(255,255,255,.14)");
+  const barG  = ctx.createLinearGradient(barX, 0, barX + barW, 0);
+  const split = Math.max(0.01, Math.min(0.99, homePct / 100));
+  barG.addColorStop(0,           hc.s);
+  barG.addColorStop(split - 0.01, hc.s);
+  barG.addColorStop(split + 0.01, ac.s);
+  barG.addColorStop(1,           ac.s);
+  roundRect(ctx, barX, posBarY, barW, barH, P(3, H), barG);
+
+  /* Divider */
   line(ctx,
-    cx - scorersW / 2 + P(14, H), scorersY + P(25, H),
-    cx + scorersW / 2 - P(14, H), scorersY + P(25, H),
+    cx - panelW / 2 + P(16, H), panelY + P(52, H),
+    cx + panelW / 2 - P(16, H), panelY + P(52, H),
     "rgba(255,255,255,.07)");
-  ft(ctx, S.scorers || "—", cx, scorersY + P(39, H), P(10, H),
-    "#ffffff", "700", "center", scorersW - P(22, H));
 
-  /* ── 11. MATCH INFO — venue + round on one clean line ──
-        Export y=1116 → P(558,H)                                   */
-  const infoY = P(558, H);
-  ft(ctx, S.stadium || "", cx, infoY, P(10, H),
-    "rgba(255,255,255,.48)", "400", "center", Math.round(W * 0.72));
-  ft(ctx, S.round   || "", cx, infoY + P(17, H), P(8.5, H),
-    "rgba(255,255,255,.26)", "400");
+  /* Shots on target */
+  const [hShots, aShots] = parseStat(S.shots);
+  const shotNumY = panelY + P(70, H);
+  ft(ctx, String(hShots),    numLX, shotNumY, P(14, H), "#ffffff", "900", "right");
+  ft(ctx, "SHOTS ON TARGET", cx,    shotNumY, P(7.5, H), "rgba(255,255,255,.38)", "700");
+  ft(ctx, String(aShots),    numRX, shotNumY, P(14, H), "#ffffff", "900", "left");
 
-  /* ── 12. FOOTER — club-color bar + league branding ──
-        Export y=1180 → P(590,H)                                   */
-  const footerDivY = P(590, H);
+  /* Scorers */
+  line(ctx,
+    cx - panelW / 2 + P(16, H), panelY + P(86, H),
+    cx + panelW / 2 - P(16, H), panelY + P(86, H),
+    "rgba(255,255,255,.07)");
+  ft(ctx, S.scorers || "—", cx, panelY + P(100, H), P(9.5, H),
+    "rgba(255,255,255,.65)", "600", "center", panelW - P(24, H));
+
+  /* ── 11. FOOTER — left brand · right social icons ──
+        Export y=1136 → P(568,H)                                   */
+  const footerY = P(568, H);
+  const footerH = H - footerY;
 
   const cg = ctx.createLinearGradient(0, 0, W, 0);
   cg.addColorStop(0,    hc.p);
   cg.addColorStop(0.25, hc.s);
   cg.addColorStop(0.75, ac.s);
   cg.addColorStop(1,    ac.p);
-  ctx.save(); ctx.globalAlpha = 0.75; ctx.fillStyle = cg;
-  ctx.fillRect(0, footerDivY - 2, W, 2.5);
+  ctx.save(); ctx.globalAlpha = 0.80; ctx.fillStyle = cg;
+  ctx.fillRect(0, footerY - 2, W, 2.5);
   ctx.restore();
 
-  line(ctx, P(36, H), footerDivY, W - P(36, H), footerDivY,
-    "rgba(255,255,255,.10)", 0.8);
+  line(ctx, P(36, H), footerY, W - P(36, H), footerY, "rgba(255,255,255,.10)", 0.8);
 
-  const fMid = P(628, H);
-  ft(ctx, "🇴🇲", 22, fMid, P(13, H), "#fff", "400", "left");
-  ft(ctx, "Oman League  •  @OmanLeague",  cx, fMid - P(8, H), P(10, H), "rgba(255,255,255,.58)", "700");
-  ft(ctx, "دوري عُمانتل للمحترفين",        cx, fMid + P(9, H), P(10, H), "rgba(255,255,255,.32)", "600");
+  /* League brand — left */
+  const fRow1 = footerY + footerH * 0.27;
+  const fRow2 = footerY + footerH * 0.52;
+  const fRow3 = footerY + footerH * 0.76;
+  ft(ctx, "🇴🇲",             P(24, H), fRow1, P(13, H), "#fff",                    "400", "left");
+  ft(ctx, "دوري عُمانتل",    P(46, H), fRow1, P(9.5, H), "rgba(255,255,255,.68)", "700", "left");
+  ft(ctx, "للمحترفين",       P(46, H), fRow2, P(9,   H), "rgba(255,255,255,.42)", "600", "left");
+  ft(ctx, "omantelleague.om", P(46, H), fRow3, P(7.5, H), "rgba(255,255,255,.22)", "400", "left");
+
+  /* Social icons — right */
+  ft(ctx, "IG  •  X  •  FB  •  YT", W - P(24, H), fRow1, P(8.5, H), "rgba(255,255,255,.44)", "600", "right");
+  ft(ctx, "@OmantelLeague",          W - P(24, H), fRow2, P(8,   H), "rgba(255,255,255,.24)", "400", "right");
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
