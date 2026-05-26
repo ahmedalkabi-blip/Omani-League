@@ -1051,153 +1051,234 @@ function Designer({ onBack }) {
 /* ═══════════════════════════════════════════════════════════════════════════
    STUDIO HOME
 ═══════════════════════════════════════════════════════════════════════════ */
-const STUDIO_TOOLS = [
-  {
-    id:"league", ar:"مصمم الدوري العُماني", en:"Oman League Designer",
-    desc:"أنشئ بوستات احترافية لمباريات كرة القدم العُمانية",
-    icon:"🇴🇲", accent:"#e8c84a", live:true,
-  },
-  {
-    id:"news", ar:"مصمم البطاقات الإخبارية", en:"News Card Studio",
-    desc:"بطاقات إخبارية بتصميم حديث",
-    icon:"📰", accent:"#6366f1", live:false,
-  },
-  {
-    id:"carousel", ar:"مصمم الكاروسيل", en:"Carousel Studio",
-    desc:"سلاسل بوستات متعددة الشرائح",
-    icon:"🎠", accent:"#10b981", live:false,
-  },
-  {
-    id:"tournament", ar:"جرافيك البطولات", en:"Tournament Graphics",
-    desc:"جداول وبراكيت البطولات",
-    icon:"🏆", accent:"#f43f5e", live:false,
-  },
+const COMING_SOON = [
+  { id:"news",       ar:"مصمم البطاقات الإخبارية", en:"News Card Studio",      icon:"📰" },
+  { id:"carousel",   ar:"مصمم الكاروسيل",           en:"Carousel Studio",       icon:"🎠" },
+  { id:"tournament", ar:"جرافيكس البطولات",          en:"Tournament Graphics",   icon:"🏆" },
 ];
 
 function StudioHome({ onOpen }) {
   return (
-    <div dir="rtl" className="min-h-screen flex flex-col"
-      style={{fontFamily:"'Cairo','Tajawal',sans-serif",background:"#07070e",color:"#fff"}}>
-
+    <div dir="rtl" style={{
+      fontFamily:"'Cairo','Tajawal',sans-serif",
+      background:"#07070e",color:"#fff",
+      minHeight:"100vh",display:"flex",flexDirection:"column",
+    }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&family=Tajawal:wght@400;700;900&display=swap');
         *{box-sizing:border-box;margin:0;padding:0}
         html,body,#root{min-height:100%}
-        .studio-card{transition:transform .18s,box-shadow .18s}
-        .studio-card:hover{transform:translateY(-4px)}
-        .studio-card-live:hover{box-shadow:0 0 0 1px rgba(232,200,74,.5),0 24px 60px rgba(232,200,74,.15)}
+        @keyframes sh-pulse{0%,100%{opacity:1}50%{opacity:.4}}
+        @keyframes sh-glow{0%,100%{box-shadow:0 0 0 1px rgba(232,200,74,.28),0 20px 60px rgba(232,200,74,.1)}50%{box-shadow:0 0 0 1px rgba(232,200,74,.5),0 24px 80px rgba(232,200,74,.22)}}
+        .sh-main-card{transition:transform .2s;animation:sh-glow 3.5s ease-in-out infinite}
+        .sh-main-card:hover{transform:translateY(-4px)}
+        .sh-open-btn{transition:background .15s,transform .12s,box-shadow .15s}
+        .sh-open-btn:hover{background:#f5d660!important;box-shadow:0 6px 24px rgba(232,200,74,.45)!important;transform:scale(1.03)}
+        .sh-cs-card{transition:opacity .15s,transform .15s}
+        .sh-cs-card:hover{opacity:.8;transform:translateY(-2px)}
       `}</style>
 
-      {/* header */}
-      <header className="flex items-center justify-between px-8 py-5 flex-shrink-0"
-        style={{borderBottom:"1px solid rgba(255,255,255,.06)"}}>
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center text-lg flex-shrink-0 font-black"
-            style={{background:"linear-gradient(135deg,#e8c84a,#c8a820)",boxShadow:"0 4px 18px rgba(232,200,74,.35)"}}>
-            O
-          </div>
+      {/* ── HEADER ── */}
+      <header style={{
+        display:"flex",alignItems:"center",justifyContent:"space-between",
+        padding:"18px 32px",
+        borderBottom:"1px solid rgba(255,255,255,.06)",
+        background:"rgba(7,7,14,.85)",
+        backdropFilter:"blur(12px)",
+        position:"sticky",top:0,zIndex:20,flexShrink:0,
+      }}>
+        {/* brand — visual-right in RTL (first child) */}
+        <div style={{display:"flex",alignItems:"center",gap:12}}>
+          <div style={{
+            width:38,height:38,borderRadius:10,flexShrink:0,
+            background:"linear-gradient(135deg,#e8c84a 0%,#b8920a 100%)",
+            display:"flex",alignItems:"center",justifyContent:"center",
+            fontSize:17,fontWeight:900,color:"#000",
+            boxShadow:"0 4px 20px rgba(232,200,74,.38)",
+          }}>O</div>
           <div>
-            <div className="text-[15px] font-black leading-none tracking-tight">Observer AI Studio</div>
-            <div className="text-[9px] tracking-[.14em] mt-0.5" style={{color:"rgba(255,255,255,.25)"}}>
+            <div style={{fontSize:15,fontWeight:900,letterSpacing:"-.01em",lineHeight:1}}>
+              Observer AI Studio
+            </div>
+            <div style={{fontSize:9,letterSpacing:".14em",color:"rgba(255,255,255,.25)",marginTop:3}}>
               DESIGN TOOLS FOR OMANI FOOTBALL
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-bold"
-          style={{background:"rgba(16,185,129,.1)",border:"1px solid rgba(16,185,129,.25)",color:"#10b981"}}>
-          <span className="w-1.5 h-1.5 rounded-full inline-block" style={{background:"#10b981",animation:"pulse 2s infinite"}}/>
+        {/* beta badge — visual-left in RTL (second child) */}
+        <div style={{
+          display:"flex",alignItems:"center",gap:6,
+          borderRadius:999,padding:"5px 13px",
+          background:"rgba(16,185,129,.08)",
+          border:"1px solid rgba(16,185,129,.22)",
+          fontSize:10,fontWeight:700,color:"#10b981",
+          flexShrink:0,
+        }}>
+          <span style={{
+            width:7,height:7,borderRadius:"50%",background:"#10b981",
+            animation:"sh-pulse 2s infinite",display:"inline-block",
+          }}/>
           Beta
         </div>
       </header>
 
-      {/* hero */}
-      <section className="px-8 pt-14 pb-10 text-center">
-        <div className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-[10px] font-bold mb-6"
-          style={{background:"rgba(232,200,74,.08)",border:"1px solid rgba(232,200,74,.18)",color:"#e8c84a"}}>
-          ✦ أدوات التصميم الرياضي
+      {/* ── MAIN CONTENT ── */}
+      <main style={{
+        flex:1,display:"flex",flexDirection:"column",alignItems:"center",
+        padding:"56px 24px 64px",
+        background:"radial-gradient(ellipse 75% 45% at 50% 0%, rgba(232,200,74,.055) 0%, transparent 55%)",
+      }}>
+
+        {/* HERO TEXT */}
+        <div style={{textAlign:"center",maxWidth:580,marginBottom:44}}>
+          <div style={{
+            display:"inline-flex",alignItems:"center",gap:8,
+            borderRadius:999,padding:"6px 16px",marginBottom:20,
+            background:"rgba(232,200,74,.07)",
+            border:"1px solid rgba(232,200,74,.2)",
+            fontSize:11,fontWeight:700,color:"#e8c84a",
+          }}>
+            ✦ أدوات التصميم الرياضي
+          </div>
+
+          <h1 style={{
+            fontSize:"clamp(30px,5.5vw,48px)",fontWeight:900,
+            lineHeight:1.2,letterSpacing:"-.025em",marginBottom:16,
+          }}>
+            صمّم محتوى رياضيًا
+            <br/>
+            <span style={{color:"#e8c84a"}}>بجودة احترافية</span>
+          </h1>
+
+          <p style={{
+            fontSize:14,lineHeight:1.9,
+            color:"rgba(255,255,255,.42)",
+            maxWidth:460,margin:"0 auto",
+          }}>
+            منصة واحدة لإنشاء تصاميم الدوري العُماني والبطاقات الرياضية بسرعة واحترافية
+          </p>
         </div>
-        <h1 className="text-[36px] font-black leading-tight mb-3" style={{letterSpacing:"-.02em"}}>
-          صمّم محتوى رياضياً<br/>
-          <span style={{color:"#e8c84a"}}>بجودة احترافية</span>
-        </h1>
-        <p className="text-[14px] max-w-md mx-auto leading-relaxed" style={{color:"rgba(255,255,255,.45)"}}>
-          اختر الأداة المناسبة لإنشاء محتوى إنستغرام جاهز للنشر
-        </p>
-      </section>
 
-      {/* tools grid */}
-      <main className="flex-1 px-8 pb-14">
-        <div className="max-w-3xl mx-auto grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {STUDIO_TOOLS.map(t => {
-            const isLive = t.live;
-            return (
-              <div key={t.id}
-                className={`studio-card rounded-2xl p-6 cursor-pointer relative overflow-hidden ${isLive?"studio-card-live":""}`}
-                style={{
-                  background: isLive
-                    ? "linear-gradient(135deg,rgba(232,200,74,.07) 0%,rgba(232,200,74,.03) 100%)"
-                    : "rgba(255,255,255,.03)",
-                  border: isLive
-                    ? "1px solid rgba(232,200,74,.25)"
-                    : "1px solid rgba(255,255,255,.07)",
-                  opacity: isLive ? 1 : 0.55,
-                }}
-                onClick={isLive ? onOpen : undefined}>
+        {/* ── MAIN CARD ── */}
+        <div className="sh-main-card" onClick={onOpen} style={{
+          width:"100%",maxWidth:600,borderRadius:22,
+          padding:"32px 36px 28px",marginBottom:16,
+          background:"linear-gradient(140deg, rgba(232,200,74,.1) 0%, rgba(200,168,32,.05) 45%, rgba(0,0,0,0) 100%)",
+          border:"1px solid rgba(232,200,74,.32)",
+          cursor:"pointer",position:"relative",overflow:"hidden",
+        }}>
+          {/* ambient glow blobs */}
+          <div style={{position:"absolute",top:-70,right:-60,width:220,height:220,
+            borderRadius:"50%",background:"rgba(232,200,74,.1)",
+            filter:"blur(55px)",pointerEvents:"none"}}/>
+          <div style={{position:"absolute",bottom:-50,left:"25%",width:160,height:160,
+            borderRadius:"50%",background:"rgba(232,200,74,.06)",
+            filter:"blur(40px)",pointerEvents:"none"}}/>
 
-                {/* glow blob for live card */}
-                {isLive && (
-                  <div style={{position:"absolute",top:-40,right:-40,width:120,height:120,
-                    borderRadius:"50%",background:"rgba(232,200,74,.08)",filter:"blur(32px)",pointerEvents:"none"}}/>
-                )}
+          {/* diagonal accent line top-left */}
+          <div style={{
+            position:"absolute",top:0,left:0,width:3,height:"100%",
+            background:"linear-gradient(180deg,#e8c84a 0%,transparent 100%)",
+            borderRadius:"22px 0 0 22px",opacity:.55,pointerEvents:"none",
+          }}/>
 
-                <div className="relative">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="w-11 h-11 rounded-xl flex items-center justify-center text-2xl flex-shrink-0"
-                      style={{background:`${t.accent}15`,border:`1px solid ${t.accent}30`}}>
-                      {t.icon}
-                    </div>
-                    {isLive ? (
-                      <span className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[9px] font-black tracking-wider"
-                        style={{background:"rgba(232,200,74,.12)",border:"1px solid rgba(232,200,74,.3)",color:"#e8c84a"}}>
-                        <span className="w-1.5 h-1.5 rounded-full" style={{background:"#e8c84a"}}/>
-                        LIVE
-                      </span>
-                    ) : (
-                      <span className="rounded-full px-2.5 py-1 text-[9px] font-bold"
-                        style={{background:"rgba(255,255,255,.05)",color:"rgba(255,255,255,.3)"}}>
-                        قريبًا
-                      </span>
-                    )}
-                  </div>
+          <div style={{position:"relative"}}>
+            {/* top row */}
+            <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:22}}>
+              <div style={{
+                width:56,height:56,borderRadius:15,
+                background:"rgba(232,200,74,.1)",
+                border:"1px solid rgba(232,200,74,.22)",
+                display:"flex",alignItems:"center",justifyContent:"center",
+                fontSize:28,flexShrink:0,
+              }}>🇴🇲</div>
 
-                  <div className="text-[17px] font-black mb-0.5 leading-snug"
-                    style={{color: isLive ? "#fff" : "rgba(255,255,255,.55)"}}>
-                    {t.ar}
-                  </div>
-                  <div className="text-[10px] font-bold mb-2" style={{color:isLive?t.accent:"rgba(255,255,255,.2)"}}>
-                    {t.en}
-                  </div>
-                  <div className="text-[12px] leading-relaxed" style={{color:"rgba(255,255,255,.38)"}}>
-                    {t.desc}
-                  </div>
-
-                  {isLive && (
-                    <div className="mt-5 flex items-center gap-2 text-[12px] font-black"
-                      style={{color:"#e8c84a"}}>
-                      فتح المصمم
-                      <span style={{transform:"rotate(180deg)",display:"inline-block"}}>←</span>
-                    </div>
-                  )}
-                </div>
+              <div style={{
+                display:"flex",alignItems:"center",gap:6,
+                borderRadius:999,padding:"5px 13px",
+                background:"rgba(232,200,74,.1)",
+                border:"1px solid rgba(232,200,74,.38)",
+                fontSize:10,fontWeight:900,color:"#e8c84a",letterSpacing:".09em",
+              }}>
+                <span style={{width:7,height:7,borderRadius:"50%",background:"#e8c84a",
+                  animation:"sh-pulse 2s infinite",display:"inline-block"}}/>
+                LIVE
               </div>
-            );
-          })}
+            </div>
+
+            {/* title */}
+            <div style={{fontSize:26,fontWeight:900,lineHeight:1.2,letterSpacing:"-.02em",marginBottom:4}}>
+              مصمم الدوري العُماني
+            </div>
+            <div style={{fontSize:12,fontWeight:700,color:"#c8a820",marginBottom:14,letterSpacing:".025em"}}>
+              Oman League Designer
+            </div>
+
+            {/* description */}
+            <p style={{fontSize:13,lineHeight:1.8,color:"rgba(255,255,255,.5)",marginBottom:26}}>
+              أنشئ بوستات يوم المباراة، النتيجة النهائية، الشوط الأول، الأهداف ورجل المباراة
+            </p>
+
+            {/* CTA row */}
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:12}}>
+              <button className="sh-open-btn" style={{
+                display:"flex",alignItems:"center",gap:8,
+                padding:"11px 26px",borderRadius:10,
+                background:"#e8c84a",color:"#000",
+                fontSize:13,fontWeight:900,border:"none",cursor:"pointer",
+                boxShadow:"0 4px 20px rgba(232,200,74,.3)",
+              }}>
+                فتح المصمم
+                <span style={{transform:"rotate(180deg)",display:"inline-block",fontSize:14,lineHeight:1}}>←</span>
+              </button>
+              <div style={{fontSize:11,color:"rgba(255,255,255,.22)",textAlign:"start"}}>
+                6 قوالب جاهزة · تصدير PNG بجودة 1080px
+              </div>
+            </div>
+          </div>
         </div>
+
+        {/* ── COMING SOON CARDS ── */}
+        <div style={{
+          width:"100%",maxWidth:600,
+          display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,
+        }}>
+          {COMING_SOON.map(c => (
+            <div key={c.id} className="sh-cs-card" style={{
+              borderRadius:16,padding:"20px 16px",
+              background:"rgba(255,255,255,.025)",
+              border:"1px solid rgba(255,255,255,.07)",
+              opacity:0.62,
+            }}>
+              <div style={{fontSize:24,marginBottom:12}}>{c.icon}</div>
+              <div style={{fontSize:13,fontWeight:800,lineHeight:1.35,marginBottom:4,color:"rgba(255,255,255,.65)"}}>
+                {c.ar}
+              </div>
+              <div style={{fontSize:9,fontWeight:600,letterSpacing:".04em",color:"rgba(255,255,255,.22)",marginBottom:14}}>
+                {c.en}
+              </div>
+              <div style={{
+                display:"inline-block",borderRadius:999,padding:"3px 10px",
+                background:"rgba(255,255,255,.05)",
+                border:"1px solid rgba(255,255,255,.09)",
+                fontSize:9,fontWeight:700,color:"rgba(255,255,255,.28)",
+              }}>
+                قريبًا
+              </div>
+            </div>
+          ))}
+        </div>
+
       </main>
 
-      {/* footer */}
-      <footer className="text-center py-6 text-[10px]" style={{color:"rgba(255,255,255,.15)",borderTop:"1px solid rgba(255,255,255,.05)"}}>
-        Observer AI Studio · الدوري العُماني للمحترفين
+      {/* ── FOOTER ── */}
+      <footer style={{
+        textAlign:"center",padding:"18px",
+        fontSize:10,color:"rgba(255,255,255,.14)",
+        borderTop:"1px solid rgba(255,255,255,.05)",
+        flexShrink:0,
+      }}>
+        Observer AI Studio • الدوري العُماني للمحترفين
       </footer>
     </div>
   );
