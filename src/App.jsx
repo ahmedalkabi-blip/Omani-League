@@ -1009,14 +1009,13 @@ function BgPanel({S,U,onBgLoad,onBgRemove}) {
 ═══════════════════════════════════════════════════════════════════════════ */
 const POST_TYPE_ICONS = {matchday:"⚽",fulltime:"🏁",halftime:"⏱️",nextmatch:"📅",goal:"🎯",motm:"⭐"};
 
-function Designer({ onBack }) {
+function Designer({ onBack, theme, onThemeToggle }) {
   const [S,setS]          = useState({...DEFAULT});
   const [zoom,setZoom]    = useState(0);
   const [hImg,setHImg]    = useState(null);
   const [aImg,setAImg]    = useState(null);
   const [bgImg,setBgImg]  = useState(null);
   const [dl,setDl]        = useState(false);
-  const [theme,setTheme]  = useState("dark");
   const T = theme === "dark" ? DARK_T : LIGHT_T;
 
   const canvasRef = useRef(null);
@@ -1103,8 +1102,6 @@ function Designer({ onBack }) {
   const hasScore=["fulltime","halftime","goal","motm"].includes(S.postType);
   const hasMOTM =S.postType==="motm";
 
-  const thumbAccent = T.name==="dark" ? T.accent : T.accent;
-
   return (
     <ThemeCtx.Provider value={T}>
     <div dir="rtl" style={{
@@ -1119,7 +1116,7 @@ function Designer({ onBack }) {
         html,body,#root{height:100%;overflow:hidden}
         ::-webkit-scrollbar{width:4px}
         ::-webkit-scrollbar-thumb{background:${T.scrollbar};border-radius:4px}
-        input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:${thumbAccent};cursor:pointer;margin-top:-5px}
+        input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:${T.accent};cursor:pointer;margin-top:-5px}
         input[type=range]::-webkit-slider-runnable-track{height:3px;border-radius:9999px}
         select option{background:${T.selectOpt};color:${T.inputText}}
       `}</style>
@@ -1166,7 +1163,7 @@ function Designer({ onBack }) {
         {/* Right actions */}
         <div style={{display:"flex",alignItems:"center",gap:8}}>
           {/* Theme toggle */}
-          <button onClick={()=>setTheme(t=>t==="dark"?"light":"dark")} style={{
+          <button onClick={onThemeToggle} style={{
             display:"flex",alignItems:"center",gap:5,padding:"5px 10px",borderRadius:8,
             border:`1px solid ${T.divider}`,background:T.btnBg,cursor:"pointer",
             fontSize:10,fontWeight:700,color:T.textMuted,transition:"all .15s",
@@ -1366,11 +1363,13 @@ const COMING_SOON = [
   { id:"tournament", ar:"جرافيكس البطولات",          en:"Tournament Graphics",   icon:"🏆" },
 ];
 
-function StudioHome({ onOpen }) {
+function StudioHome({ onOpen, theme, onThemeToggle, T }) {
+  const isDark = theme === "dark";
   return (
     <div dir="rtl" style={{
       fontFamily:"'Cairo','Tajawal',sans-serif",
-      background:"#07070e",color:"#fff",
+      background: isDark ? "#07070e" : T.appBg,
+      color: T.text,
       minHeight:"100vh",display:"flex",flexDirection:"column",
     }}>
       <style>{`
@@ -1378,25 +1377,31 @@ function StudioHome({ onOpen }) {
         *{box-sizing:border-box;margin:0;padding:0}
         html,body,#root{min-height:100%}
         @keyframes sh-pulse{0%,100%{opacity:1}50%{opacity:.4}}
-        @keyframes sh-glow{0%,100%{box-shadow:0 0 0 1px rgba(232,200,74,.28),0 20px 60px rgba(232,200,74,.1)}50%{box-shadow:0 0 0 1px rgba(232,200,74,.5),0 24px 80px rgba(232,200,74,.22)}}
-        .sh-main-card{transition:transform .2s;animation:sh-glow 3.5s ease-in-out infinite}
+        @keyframes sh-glow{
+          0%,100%{box-shadow:0 0 0 1px rgba(232,200,74,.28),0 20px 60px rgba(232,200,74,.1)}
+          50%{box-shadow:0 0 0 1px rgba(232,200,74,.5),0 24px 80px rgba(232,200,74,.22)}
+        }
+        .sh-main-card{transition:transform .2s}
         .sh-main-card:hover{transform:translateY(-4px)}
         .sh-open-btn{transition:background .15s,transform .12s,box-shadow .15s}
         .sh-open-btn:hover{background:#f5d660!important;box-shadow:0 6px 24px rgba(232,200,74,.45)!important;transform:scale(1.03)}
         .sh-cs-card{transition:opacity .15s,transform .15s}
-        .sh-cs-card:hover{opacity:.8;transform:translateY(-2px)}
+        .sh-cs-card:hover{opacity:.75;transform:translateY(-2px)}
+        .sh-toggle-btn{transition:background .15s,color .15s}
+        .sh-toggle-btn:hover{opacity:.8}
       `}</style>
 
       {/* ── HEADER ── */}
       <header style={{
         display:"flex",alignItems:"center",justifyContent:"space-between",
-        padding:"18px 32px",
-        borderBottom:"1px solid rgba(255,255,255,.06)",
-        background:"rgba(7,7,14,.85)",
+        padding:"14px 32px",
+        borderBottom:`1px solid ${T.divider}`,
+        background: isDark ? "rgba(7,7,14,.85)" : T.topBarBg,
         backdropFilter:"blur(12px)",
         position:"sticky",top:0,zIndex:20,flexShrink:0,
+        gap:12,
       }}>
-        {/* brand — visual-right in RTL (first child) */}
+        {/* Brand */}
         <div style={{display:"flex",alignItems:"center",gap:12}}>
           <div style={{
             width:38,height:38,borderRadius:10,flexShrink:0,
@@ -1406,28 +1411,40 @@ function StudioHome({ onOpen }) {
             boxShadow:"0 4px 20px rgba(232,200,74,.38)",
           }}>O</div>
           <div>
-            <div style={{fontSize:15,fontWeight:900,letterSpacing:"-.01em",lineHeight:1}}>
+            <div style={{fontSize:15,fontWeight:900,letterSpacing:"-.01em",lineHeight:1,color:T.text}}>
               Observer AI Studio
             </div>
-            <div style={{fontSize:9,letterSpacing:".14em",color:"rgba(255,255,255,.25)",marginTop:3}}>
+            <div style={{fontSize:9,letterSpacing:".14em",color:T.textFaint,marginTop:3}}>
               DESIGN TOOLS FOR OMANI FOOTBALL
             </div>
           </div>
         </div>
-        {/* beta badge — visual-left in RTL (second child) */}
-        <div style={{
-          display:"flex",alignItems:"center",gap:6,
-          borderRadius:999,padding:"5px 13px",
-          background:"rgba(16,185,129,.08)",
-          border:"1px solid rgba(16,185,129,.22)",
-          fontSize:10,fontWeight:700,color:"#10b981",
-          flexShrink:0,
-        }}>
-          <span style={{
-            width:7,height:7,borderRadius:"50%",background:"#10b981",
-            animation:"sh-pulse 2s infinite",display:"inline-block",
-          }}/>
-          Beta
+
+        {/* Right side: theme toggle + beta badge */}
+        <div style={{display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
+          {/* Theme toggle */}
+          <button className="sh-toggle-btn" onClick={onThemeToggle} style={{
+            display:"flex",alignItems:"center",gap:5,padding:"6px 12px",borderRadius:8,
+            border:`1px solid ${T.divider}`,background:T.btnBg,cursor:"pointer",
+            fontSize:10,fontWeight:700,color:T.textMuted,
+          }}>
+            {isDark ? "☀️ فاتح" : "🌙 داكن"}
+          </button>
+
+          {/* Beta badge */}
+          <div style={{
+            display:"flex",alignItems:"center",gap:6,
+            borderRadius:999,padding:"5px 13px",
+            background:"rgba(16,185,129,.08)",
+            border:"1px solid rgba(16,185,129,.22)",
+            fontSize:10,fontWeight:700,color:"#10b981",
+          }}>
+            <span style={{
+              width:7,height:7,borderRadius:"50%",background:"#10b981",
+              animation:"sh-pulse 2s infinite",display:"inline-block",
+            }}/>
+            Beta
+          </div>
         </div>
       </header>
 
@@ -1435,7 +1452,9 @@ function StudioHome({ onOpen }) {
       <main style={{
         flex:1,display:"flex",flexDirection:"column",alignItems:"center",
         padding:"56px 24px 64px",
-        background:"radial-gradient(ellipse 75% 45% at 50% 0%, rgba(232,200,74,.055) 0%, transparent 55%)",
+        background: isDark
+          ? "radial-gradient(ellipse 75% 45% at 50% 0%, rgba(232,200,74,.055) 0%, transparent 55%)"
+          : "none",
       }}>
 
         {/* HERO TEXT */}
@@ -1443,9 +1462,9 @@ function StudioHome({ onOpen }) {
           <div style={{
             display:"inline-flex",alignItems:"center",gap:8,
             borderRadius:999,padding:"6px 16px",marginBottom:20,
-            background:"rgba(232,200,74,.07)",
-            border:"1px solid rgba(232,200,74,.2)",
-            fontSize:11,fontWeight:700,color:"#e8c84a",
+            background:"rgba(232,200,74,.09)",
+            border:"1px solid rgba(232,200,74,.25)",
+            fontSize:11,fontWeight:700,color:"#c8a820",
           }}>
             ✦ أدوات التصميم الرياضي
           </div>
@@ -1453,6 +1472,7 @@ function StudioHome({ onOpen }) {
           <h1 style={{
             fontSize:"clamp(30px,5.5vw,48px)",fontWeight:900,
             lineHeight:1.2,letterSpacing:"-.025em",marginBottom:16,
+            color:T.text,
           }}>
             صمّم محتوى رياضيًا
             <br/>
@@ -1461,7 +1481,7 @@ function StudioHome({ onOpen }) {
 
           <p style={{
             fontSize:14,lineHeight:1.9,
-            color:"rgba(255,255,255,.42)",
+            color:T.textMuted,
             maxWidth:460,margin:"0 auto",
           }}>
             منصة واحدة لإنشاء تصاميم الدوري العُماني والبطاقات الرياضية بسرعة واحترافية
@@ -1472,19 +1492,25 @@ function StudioHome({ onOpen }) {
         <div className="sh-main-card" onClick={onOpen} style={{
           width:"100%",maxWidth:600,borderRadius:22,
           padding:"32px 36px 28px",marginBottom:16,
-          background:"linear-gradient(140deg, rgba(232,200,74,.1) 0%, rgba(200,168,32,.05) 45%, rgba(0,0,0,0) 100%)",
-          border:"1px solid rgba(232,200,74,.32)",
+          background: isDark
+            ? "linear-gradient(140deg, rgba(232,200,74,.1) 0%, rgba(200,168,32,.05) 45%, rgba(0,0,0,0) 100%)"
+            : T.sidebarBg,
+          border:`1px solid ${isDark ? "rgba(232,200,74,.32)" : "rgba(232,200,74,.45)"}`,
+          boxShadow: isDark
+            ? "0 0 0 1px rgba(232,200,74,.28), 0 20px 60px rgba(232,200,74,.1)"
+            : "0 4px 32px rgba(232,200,74,.18), 0 0 0 1.5px rgba(232,200,74,.38)",
           cursor:"pointer",position:"relative",overflow:"hidden",
+          animation: isDark ? "sh-glow 3.5s ease-in-out infinite" : "none",
         }}>
           {/* ambient glow blobs */}
           <div style={{position:"absolute",top:-70,right:-60,width:220,height:220,
-            borderRadius:"50%",background:"rgba(232,200,74,.1)",
+            borderRadius:"50%",background:"rgba(232,200,74,.08)",
             filter:"blur(55px)",pointerEvents:"none"}}/>
           <div style={{position:"absolute",bottom:-50,left:"25%",width:160,height:160,
-            borderRadius:"50%",background:"rgba(232,200,74,.06)",
+            borderRadius:"50%",background:"rgba(232,200,74,.05)",
             filter:"blur(40px)",pointerEvents:"none"}}/>
 
-          {/* diagonal accent line top-left */}
+          {/* diagonal accent line */}
           <div style={{
             position:"absolute",top:0,left:0,width:3,height:"100%",
             background:"linear-gradient(180deg,#e8c84a 0%,transparent 100%)",
@@ -1516,7 +1542,7 @@ function StudioHome({ onOpen }) {
             </div>
 
             {/* title */}
-            <div style={{fontSize:26,fontWeight:900,lineHeight:1.2,letterSpacing:"-.02em",marginBottom:4}}>
+            <div style={{fontSize:26,fontWeight:900,lineHeight:1.2,letterSpacing:"-.02em",marginBottom:4,color:T.text}}>
               مصمم الدوري العُماني
             </div>
             <div style={{fontSize:12,fontWeight:700,color:"#c8a820",marginBottom:14,letterSpacing:".025em"}}>
@@ -1524,7 +1550,7 @@ function StudioHome({ onOpen }) {
             </div>
 
             {/* description */}
-            <p style={{fontSize:13,lineHeight:1.8,color:"rgba(255,255,255,.5)",marginBottom:26}}>
+            <p style={{fontSize:13,lineHeight:1.8,color:T.textMuted,marginBottom:26}}>
               أنشئ بوستات يوم المباراة، النتيجة النهائية، الشوط الأول، الأهداف ورجل المباراة
             </p>
 
@@ -1540,7 +1566,7 @@ function StudioHome({ onOpen }) {
                 فتح المصمم
                 <span style={{transform:"rotate(180deg)",display:"inline-block",fontSize:14,lineHeight:1}}>←</span>
               </button>
-              <div style={{fontSize:11,color:"rgba(255,255,255,.22)",textAlign:"start"}}>
+              <div style={{fontSize:11,color:T.textFaint,textAlign:"start"}}>
                 6 قوالب جاهزة · تصدير PNG بجودة 1080px
               </div>
             </div>
@@ -1555,22 +1581,22 @@ function StudioHome({ onOpen }) {
           {COMING_SOON.map(c => (
             <div key={c.id} className="sh-cs-card" style={{
               borderRadius:16,padding:"20px 16px",
-              background:"rgba(255,255,255,.025)",
-              border:"1px solid rgba(255,255,255,.07)",
-              opacity:0.62,
+              background: isDark ? "rgba(255,255,255,.025)" : T.btnBg,
+              border:`1px solid ${T.divider}`,
+              opacity:0.7,
             }}>
               <div style={{fontSize:24,marginBottom:12}}>{c.icon}</div>
-              <div style={{fontSize:13,fontWeight:800,lineHeight:1.35,marginBottom:4,color:"rgba(255,255,255,.65)"}}>
+              <div style={{fontSize:13,fontWeight:800,lineHeight:1.35,marginBottom:4,color:T.textMuted}}>
                 {c.ar}
               </div>
-              <div style={{fontSize:9,fontWeight:600,letterSpacing:".04em",color:"rgba(255,255,255,.22)",marginBottom:14}}>
+              <div style={{fontSize:9,fontWeight:600,letterSpacing:".04em",color:T.textFaint,marginBottom:14}}>
                 {c.en}
               </div>
               <div style={{
                 display:"inline-block",borderRadius:999,padding:"3px 10px",
-                background:"rgba(255,255,255,.05)",
-                border:"1px solid rgba(255,255,255,.09)",
-                fontSize:9,fontWeight:700,color:"rgba(255,255,255,.28)",
+                background: isDark ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.04)",
+                border:`1px solid ${T.divider}`,
+                fontSize:9,fontWeight:700,color:T.textFaint,
               }}>
                 قريبًا
               </div>
@@ -1583,8 +1609,8 @@ function StudioHome({ onOpen }) {
       {/* ── FOOTER ── */}
       <footer style={{
         textAlign:"center",padding:"18px",
-        fontSize:10,color:"rgba(255,255,255,.14)",
-        borderTop:"1px solid rgba(255,255,255,.05)",
+        fontSize:10,color:T.textFaint,
+        borderTop:`1px solid ${T.divider}`,
         flexShrink:0,
       }}>
         Observer AI Studio • الدوري العُماني للمحترفين
@@ -1597,7 +1623,12 @@ function StudioHome({ onOpen }) {
    ROOT APP — view router
 ═══════════════════════════════════════════════════════════════════════════ */
 export default function App() {
-  const [view, setView] = useState("studio");
-  if (view === "designer") return <Designer onBack={() => setView("studio")} />;
-  return <StudioHome onOpen={() => setView("designer")} />;
+  const [view, setView]   = useState("studio");
+  const [theme, setTheme] = useState("dark");
+  const T = theme === "dark" ? DARK_T : LIGHT_T;
+  const toggleTheme = () => setTheme(t => t === "dark" ? "light" : "dark");
+
+  if (view === "designer")
+    return <Designer onBack={() => setView("studio")} theme={theme} onThemeToggle={toggleTheme} />;
+  return <StudioHome onOpen={() => setView("designer")} theme={theme} onThemeToggle={toggleTheme} T={T} />;
 }
