@@ -62,6 +62,39 @@ const DEFAULT = {
 ═══════════════════════════════════════════════════════════════════════════ */
 const R = x => Math.round(x);
 
+/* Return the tight bounding box of non-transparent pixels.
+   Result is cached on img._tight so the offscreen read runs once per load. */
+function getLogoTightBounds(img) {
+  if (img._tight) return img._tight;
+  const iw = img.naturalWidth || img.width || 1;
+  const ih = img.naturalHeight || img.height || 1;
+  try {
+    const oc = document.createElement("canvas");
+    oc.width = iw; oc.height = ih;
+    const oc2d = oc.getContext("2d", { willReadFrequently: true });
+    oc2d.drawImage(img, 0, 0);
+    const { data } = oc2d.getImageData(0, 0, iw, ih);
+    let x0 = iw, y0 = ih, x1 = 0, y1 = 0;
+    for (let y = 0; y < ih; y++) {
+      for (let x = 0; x < iw; x++) {
+        if (data[(y * iw + x) * 4 + 3] > 8) {
+          if (x < x0) x0 = x; if (x > x1) x1 = x;
+          if (y < y0) y0 = y; if (y > y1) y1 = y;
+        }
+      }
+    }
+    const bounds = x1 > x0 && y1 > y0
+      ? { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 }
+      : { x: 0,  y: 0,  w: iw,           h: ih           };
+    img._tight = bounds;
+    return bounds;
+  } catch (_) {
+    const bounds = { x: 0, y: 0, w: iw, h: ih };
+    img._tight = bounds;
+    return bounds;
+  }
+}
+
 function createEngine(ctx, W, H) {
   function txt(str, x, y, size, color="#fff", weight="700", align="center", maxW) {
     if (!str && str !== 0) return;
@@ -188,15 +221,14 @@ function createEngine(ctx, W, H) {
     circ(cx, cy, face, "rgba(242,242,240,1)", null);
 
     if (img) {
-      /* Contain: logo fits inside 76% of face diameter — no stretch, no crop */
+      /* Contain: scale tight content to 76% of face diameter — no stretch, no padding bias */
       const innerD = R(face * 0.76) * 2;
-      const iw = img.naturalWidth  || img.width  || 1;
-      const ih = img.naturalHeight || img.height || 1;
-      const scale = Math.min(innerD / iw, innerD / ih);
-      const sw = R(iw * scale), sh = R(ih * scale);
+      const tb = getLogoTightBounds(img);
+      const scale = Math.min(innerD / tb.w, innerD / tb.h);
+      const dw = R(tb.w * scale), dh = R(tb.h * scale);
       ctx.save();
       ctx.beginPath(); ctx.arc(cx, cy, face - 1, 0, Math.PI * 2); ctx.clip();
-      ctx.drawImage(img, R(cx - sw / 2), R(cy - sh / 2), sw, sh);
+      ctx.drawImage(img, tb.x, tb.y, tb.w, tb.h, R(cx - dw / 2), R(cy - dh / 2), dw, dh);
       ctx.restore();
     } else {
       ctx.save();
