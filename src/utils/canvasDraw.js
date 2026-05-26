@@ -304,33 +304,34 @@ export function drawMatchDay(ctx, S, hc, ac, uImg, W = 540, H = 675) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
-   FINAL SCORE / HALF TIME  —  Clean premium editorial rebuild
+   FINAL SCORE — Cinematic editorial poster
    ─────────────────────────────────────────────────────────────────────
    All positions given in EXPORT px (1080×1350). Internal = export ÷ 2.
    P(n,H) scales any portrait-internal value to current canvas height.
 
    Exact coordinate map (export → internal portrait H=675):
-     "النتيجة النهائية" badge  y=150   → y=75
-     S.status text             y=592   → y=296
-     Logos center              y=680   → y=340   r=38 (export r=75)
-     Score                     y=690   → y=345   font=60 (export 120)
-     Arabic team names         y=804   → y=402   font=22 (export 44)
-     English team names        y=840   → y=420   font=9  (export 18)
-     Scorers box               y=900–1010 → y=450–505
-     Match info row            y=1064  → y=532
-     Footer divider            y=1180  → y=590
-     Footer content            y=1250  → y=625
+     "النتيجة النهائية" badge  y=150   → P(75,H)
+     S.status text             y=578   → P(289,H)
+     Logos center              y=680   → P(340,H)  r=38 (export r=76)
+     Score                     y=690   → P(345,H)  font=P(60,H)=120px
+     Accent line               y=770   → P(385,H)
+     Arabic team names         y=930   → P(465,H)  ← key: clearly lower
+     English team names        y=964   → P(482,H)
+     Scorers box               y=1000–1100 → P(500,H)–P(550,H)
+     Match info row            y=1116  → P(558,H)
+     Footer divider            y=1180  → P(590,H)
+     Footer content            y=1256  → P(628,H)
 ═══════════════════════════════════════════════════════════════════════ */
 export function drawFinalScore(ctx, S, hc, ac, uImg, W = 540, H = 675) {
   const cx = W / 2;
 
   /* ── 1. DARK BASE ── */
-  ctx.fillStyle = "#07070f";
+  ctx.fillStyle = "#05050d";
   ctx.fillRect(0, 0, W, H);
 
-  /* ── 2. BACKGROUND IMAGE — full canvas, cover fit, no clip ──
-        Image fills the whole 540×675 canvas. Gradient does the
-        darkening; no need to restrict image to a sub-zone.        */
+  /* ── 2. BACKGROUND IMAGE — full canvas, cover fit ──
+        Image covers the entire canvas. The cinematic gradient below
+        provides all darkening — no clip, no sub-zone restriction.  */
   if (uImg) {
     const scale = S.sc / 100;
     const f     = Math.max(W / uImg.naturalWidth, H / uImg.naturalHeight) * scale;
@@ -342,143 +343,130 @@ export function drawFinalScore(ctx, S, hc, ac, uImg, W = 540, H = 675) {
     ctx.restore();
   }
 
-  /* ── 3. DARK OVERLAYS ──
-        Layer A: flat 40 % across the whole canvas (mutes image uniformly,
-                 keeps top half readable without extra blur)
-        Layer B: gradient from export y=520 (internal y=260) downward,
-                 adds 0 → 88 % extra darkness to the lower match area.  */
-  ctx.fillStyle = "rgba(0,0,0,.40)";
+  /* ── 3. CINEMATIC GRADIENT — barely dark at top, near-black at bottom ──
+        Reference look: photo clearly visible in the upper half,
+        deep editorial black consuming the lower third.              */
+  const cineG = ctx.createLinearGradient(0, 0, 0, H);
+  cineG.addColorStop(0.00, "rgba(0,0,0,.14)");
+  cineG.addColorStop(0.18, "rgba(0,0,0,.22)");
+  cineG.addColorStop(0.38, "rgba(0,0,0,.50)");
+  cineG.addColorStop(0.56, "rgba(0,0,0,.74)");
+  cineG.addColorStop(0.72, "rgba(0,0,0,.88)");
+  cineG.addColorStop(0.86, "rgba(0,0,0,.94)");
+  cineG.addColorStop(1.00, "rgba(0,0,0,.97)");
+  ctx.fillStyle = cineG;
   ctx.fillRect(0, 0, W, H);
 
-  const fadeStart = P(260, H);
-  const fadeG     = ctx.createLinearGradient(0, fadeStart, 0, H);
-  fadeG.addColorStop(0,    "rgba(0,0,0,0)");
-  fadeG.addColorStop(0.22, "rgba(0,0,0,.36)");
-  fadeG.addColorStop(0.55, "rgba(0,0,0,.68)");
-  fadeG.addColorStop(1,    "rgba(0,0,0,.88)");
-  ctx.fillStyle = fadeG;
-  ctx.fillRect(0, fadeStart, W, H - fadeStart);
-
-  /* ── 4. HEADER ──
-        Date: export x=70, y=80  → internal x=35, y=40
-        Round: export x=1010, y=80 → internal x=505, y=40
-        Template badge: export y=150 → internal y=75               */
-  ft(ctx, S.date  || "", 35,  P(40, H), P(10, H), "rgba(255,255,255,.72)", "600", "left");
-  ft(ctx, S.round || "", 505, P(40, H), P(10, H), "rgba(255,255,255,.55)", "600", "right");
+  /* ── 4. HEADER — date left, round right, badge center ──
+        Export y=80 → P(40,H);  badge y=150 → P(75,H)             */
+  ft(ctx, S.date  || "", 18,      P(40, H), P(10, H), "rgba(255,255,255,.72)", "600", "left");
+  ft(ctx, S.round || "", W - 18,  P(40, H), P(10, H), "rgba(255,255,255,.50)", "600", "right");
 
   const badgeY = P(75, H);
-  roundRect(ctx, cx - P(90, H), badgeY - P(13, H), P(180, H), P(26, H), P(13, H), "#facc15");
+  roundRect(ctx, cx - P(88, H), badgeY - P(12, H), P(176, H), P(25, H), P(12, H), "#facc15");
   ft(ctx, "النتيجة النهائية", cx, badgeY, P(11, H), "#000", "900");
 
-  /* ── 5. STATUS TEXT — small, just above score block ──
-        export y=592 → internal y=296                               */
-  ft(ctx, S.status || "FULL TIME", cx, P(296, H), P(9, H),
-    "rgba(255,255,255,.50)", "400");
+  /* ── 5. STATUS TEXT — slim label above score ──
+        Export y=578 → P(289,H)                                    */
+  ft(ctx, S.status || "FULL TIME", cx, P(289, H), P(9, H),
+    "rgba(255,255,255,.45)", "400");
 
-  /* ── 6. SCORE BLOCK ──
-        Logos:  home x=130 (export 260), away x=410 (export 820)
-                y=340 (export 680), r=38 (export r=75, diameter 150)
-        Score:  cx=270, y=345 (export 690), font 60px (export 120)  */
-  const logoY    = P(340, H);
-  const logoR    = P(38,  H);
-  const homeX    = 130;          // fixed — W always 540, export 260
-  const awayX    = 410;          // fixed — export 820
+  /* ── 6. SCORE BLOCK — dominant visual center ──
+        Logos: homeX=130 (exp 260), awayX=410 (exp 820)
+               logoY=P(340,H) (exp 680), logoR=P(38,H) (exp 76)
+        Score: cx, scoreY=P(345,H) (exp 690), font=P(60,H) (exp 120) */
+  const logoY = P(340, H);
+  const logoR = P(38,  H);
+  const homeX = 130;
+  const awayX = 410;
 
   ctx.save();
   ctx.shadowColor = hc.s;
-  ctx.shadowBlur  = P(22, H);
+  ctx.shadowBlur  = P(24, H);
   circle(ctx, homeX, logoY, logoR, hc.p, hc.s, Math.max(2, P(2, H)));
   ctx.restore();
-  ft(ctx, hc.b, homeX, logoY, Math.round(logoR * 0.76));
+  ft(ctx, hc.b, homeX, logoY, Math.round(logoR * 0.78));
 
   ctx.save();
   ctx.shadowColor = ac.s;
-  ctx.shadowBlur  = P(22, H);
+  ctx.shadowBlur  = P(24, H);
   circle(ctx, awayX, logoY, logoR, ac.p, ac.s, Math.max(2, P(2, H)));
   ctx.restore();
-  ft(ctx, ac.b, awayX, logoY, Math.round(logoR * 0.76));
+  ft(ctx, ac.b, awayX, logoY, Math.round(logoR * 0.78));
 
-  /* Score — the single most dominant visual element */
   const [hs, as]  = parseScore(S.score);
   const scoreY    = P(345, H);
-  const scoreFont = P(60, H);    // export 120 px
-  const scoreOff  = P(52, H);
+  const scoreFont = P(60,  H);
+  const scoreOff  = P(52,  H);
   ft(ctx, hs, cx - scoreOff, scoreY, scoreFont, "#ffffff", "900");
-  ft(ctx, "–", cx,           scoreY - P(4, H), P(20, H), "#facc15", "300");
+  ft(ctx, "–", cx,           scoreY - P(3, H), P(22, H), "#facc15", "300");
   ft(ctx, as, cx + scoreOff, scoreY, scoreFont, "#ffffff", "900");
 
-  /* ── 7. ARABIC TEAM NAMES — export y=804, font 44px ──
-        No background boxes — plain bold text only.                 */
-  const arNameY = P(402, H);
-  const arFont  = P(22, H);
-  const arMaxW  = Math.round(W * 0.33);
+  /* ── 7. ACCENT LINE — separates score from team info ──
+        Export y=770 → P(385,H)                                    */
+  accentDivider(ctx, W, P(385, H), hc, ac, 1.2);
+
+  /* ── 8. ARABIC TEAM NAMES — clearly in the lower section ──
+        Export y=930 → P(465,H).
+        Key correction: names must be low, not near the middle.     */
+  const arNameY = P(465, H);
+  const arFont  = P(22,  H);
+  const arMaxW  = Math.round(W * 0.32);
   ft(ctx, hc.n, homeX, arNameY, arFont, "#ffffff", "900", "center", arMaxW);
   ft(ctx, ac.n, awayX, arNameY, arFont, "#ffffff", "900", "center", arMaxW);
 
-  /* ── 8. ENGLISH TEAM NAMES — export y=840, font 18px ── */
-  const enNameY = P(420, H);
-  const enFont  = P(9, H);
-  ft(ctx, hc.e, homeX, enNameY, enFont, "rgba(255,255,255,.38)", "400");
-  ft(ctx, ac.e, awayX, enNameY, enFont, "rgba(255,255,255,.38)", "400");
+  /* ── 9. ENGLISH TEAM NAMES ──
+        Export y=964 → P(482,H)                                    */
+  const enNameY = P(482, H);
+  const enFont  = P(9,   H);
+  ft(ctx, hc.e, homeX, enNameY, enFont, "rgba(255,255,255,.36)", "400");
+  ft(ctx, ac.e, awayX, enNameY, enFont, "rgba(255,255,255,.36)", "400");
 
-  /* ── 9. SCORERS BOX — export y=900–1010, width=820 ──
-        Dark transparent box with subtle 1-px border. No heavy styling. */
-  const scorersY = P(450, H);
-  const scorersH = P(55, H);
-  const scorersW = P(410, H);
+  /* ── 10. SCORERS ROW — subtle transparent box ──
+        Export y=1000–1100 → P(500,H)–P(550,H)                    */
+  const scorersY = P(500, H);
+  const scorersH = P(50,  H);
+  const scorersW = P(400, H);
   roundRect(ctx, cx - scorersW / 2, scorersY, scorersW, scorersH, P(10, H),
-    "rgba(0,0,0,.52)", "rgba(255,255,255,.13)");
+    "rgba(0,0,0,.50)", "rgba(255,255,255,.10)");
 
-  ft(ctx, "الهدافون", cx, scorersY + P(14, H), P(9, H),
-    "rgba(255,255,255,.38)", "600");
+  ft(ctx, "الهدافون", cx, scorersY + P(13, H), P(8.5, H),
+    "rgba(255,255,255,.35)", "600");
   line(ctx,
-    cx - scorersW / 2 + P(16, H), scorersY + P(27, H),
-    cx + scorersW / 2 - P(16, H), scorersY + P(27, H),
-    "rgba(255,255,255,.08)");
-  ft(ctx, S.scorers || "—", cx, scorersY + P(42, H), P(11, H),
-    "#ffffff", "700", "center", scorersW - P(24, H));
+    cx - scorersW / 2 + P(14, H), scorersY + P(25, H),
+    cx + scorersW / 2 - P(14, H), scorersY + P(25, H),
+    "rgba(255,255,255,.07)");
+  ft(ctx, S.scorers || "—", cx, scorersY + P(39, H), P(10, H),
+    "#ffffff", "700", "center", scorersW - P(22, H));
 
-  /* ── 10. MATCH INFO ROW — export y=1064, internal y=532 ──
-        Venue and round on one clean line. No large pills.          */
-  const infoY = P(532, H);
-
-  ctx.save();
-  ctx.lineWidth = 1.2; ctx.globalAlpha = 0.38;
-  ctx.strokeStyle = hc.s;
-  ctx.beginPath(); ctx.moveTo(20, infoY - P(13, H)); ctx.lineTo(cx - P(78, H), infoY - P(13, H)); ctx.stroke();
-  ctx.strokeStyle = ac.s;
-  ctx.beginPath(); ctx.moveTo(cx + P(78, H), infoY - P(13, H)); ctx.lineTo(W - 20, infoY - P(13, H)); ctx.stroke();
-  ctx.restore();
-
+  /* ── 11. MATCH INFO — venue + round on one clean line ──
+        Export y=1116 → P(558,H)                                   */
+  const infoY = P(558, H);
   ft(ctx, S.stadium || "", cx, infoY, P(10, H),
-    "rgba(255,255,255,.50)", "400", "center", Math.round(W * 0.70));
-  ft(ctx, S.round   || "", cx, infoY + P(18, H), P(9, H),
-    "rgba(255,255,255,.28)", "400");
+    "rgba(255,255,255,.48)", "400", "center", Math.round(W * 0.72));
+  ft(ctx, S.round   || "", cx, infoY + P(17, H), P(8.5, H),
+    "rgba(255,255,255,.26)", "400");
 
-  /* ── 11. FOOTER — export y=1180 divider, y=1250 content ──
-        Thin divider + club-color bar + centered branding text.
-        Minimal — not empty, not oversized.                         */
+  /* ── 12. FOOTER — club-color bar + league branding ──
+        Export y=1180 → P(590,H)                                   */
   const footerDivY = P(590, H);
 
-  // Club-color 2px bar just above divider
   const cg = ctx.createLinearGradient(0, 0, W, 0);
   cg.addColorStop(0,    hc.p);
   cg.addColorStop(0.25, hc.s);
   cg.addColorStop(0.75, ac.s);
   cg.addColorStop(1,    ac.p);
-  ctx.save(); ctx.globalAlpha = 0.72; ctx.fillStyle = cg;
-  ctx.fillRect(0, footerDivY - 2, W, 2);
+  ctx.save(); ctx.globalAlpha = 0.75; ctx.fillStyle = cg;
+  ctx.fillRect(0, footerDivY - 2, W, 2.5);
   ctx.restore();
 
-  // Thin white divider
   line(ctx, P(36, H), footerDivY, W - P(36, H), footerDivY,
-    "rgba(255,255,255,.13)", 0.8);
+    "rgba(255,255,255,.10)", 0.8);
 
-  // Footer content — export y=1250 → internal y=625
-  const fMid = P(625, H);
+  const fMid = P(628, H);
   ft(ctx, "🇴🇲", 22, fMid, P(13, H), "#fff", "400", "left");
-  ft(ctx, "Oman League  •  @OmanLeague",      cx, fMid - P(9, H), P(10, H), "rgba(255,255,255,.58)", "700");
-  ft(ctx, "دوري عُمانتل للمحترفين",            cx, fMid + P(9, H), P(10, H), "rgba(255,255,255,.34)", "600");
+  ft(ctx, "Oman League  •  @OmanLeague",  cx, fMid - P(8, H), P(10, H), "rgba(255,255,255,.58)", "700");
+  ft(ctx, "دوري عُمانتل للمحترفين",        cx, fMid + P(9, H), P(10, H), "rgba(255,255,255,.32)", "600");
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
