@@ -226,40 +226,6 @@ function drawStatusBadge(e, S, W, y, labelEn) {
   e.txt(labelEn,W/2,y,26,"#000","900");
 }
 
-function drawTeamCol(e, S, side, cx, logoY, logoR, hImg, aImg, W) {
-  const club=getClub(S,side);
-  const img=side==="h"?hImg:aImg;
-  e.drawLogo(img,club.emoji,cx,logoY,logoR,club.p,club.s);
-  const arY=logoY+logoR+22+28;
-  const enY=arY+54;
-  if (S.showAr) {
-    e.txt(club.ar,cx,arY,58,"rgba(0,0,0,.45)","900","center",W*0.38, 0);
-    e.txt(club.ar,cx+0,arY-1,58,"#fff","900","center",W*0.38);
-  }
-  if (S.showEn) {
-    e.txt(club.en,cx,enY,20,"rgba(255,255,255,.4)","600","center",W*0.36);
-  }
-  const uw=100;
-  e.rrect(cx-uw/2,arY+34,uw,3,2,club.s,null);
-}
-
-function drawVSBlock(e, S, W, cy) {
-  e.txt("VS",W/2,cy-8,100,"rgba(255,255,255,.05)","900");
-  const tpw=220;
-  e.rrect(W/2-tpw/2,cy+50,tpw,58,29,"rgba(0,0,0,.6)",S.accent+"88",2);
-  e.txt(S.time,W/2,cy+79,32,S.accent,"900");
-}
-
-function drawScoreBlock(e, S, W, cy) {
-  const ss=parseInt(S.scoreSize)||160;
-  const bw=500, bh=Math.round(ss*1.5);
-  e.rrect(W/2-bw/2,cy-bh/2,bw,bh,14,"rgba(0,0,0,.6)","rgba(255,255,255,.1)",1.2);
-  e.txtStroke(S.hScore||"0",W/2-bw/2+110,cy,ss,"#fff","rgba(0,0,0,.5)","900");
-  e.rrect(W/2-26,cy-40,52,80,6,S.accent,null);
-  e.txt("–",W/2,cy,42,"#000","900");
-  e.txtStroke(S.aScore||"0",W/2+bw/2-110,cy,ss,"#fff","rgba(0,0,0,.5)","900");
-}
-
 function drawInfoRow(e, S, W, y) {
   const rw=(W-88)/2-6, rh=56;
   e.rrect(44,y,rw,rh,6,"rgba(0,0,0,.5)","rgba(255,255,255,.08)",1);
@@ -280,41 +246,100 @@ function drawFooter(e, S, W, H, hImg, aImg) {
   e.drawLogo(aImg,ac.emoji,W-52,fy+44,22,ac.p,ac.s);
 }
 
-function drawStats(e, S, W, y) {
-  const labels=["الاستحواذ","التسديدات","التمريرات"];
-  const hv=[65,7,480], av=[35,4,360];
-  labels.forEach((lbl,i)=>{
-    const ry=y+i*66;
-    e.rrect(44,ry,W-88,50,6,"rgba(0,0,0,.38)","rgba(255,255,255,.07)",1);
-    e.txt(lbl,W/2,ry+25,17,"rgba(255,255,255,.4)","600");
-    const total=hv[i]+av[i], hw=R((hv[i]/total)*(W-116));
-    e.rrect(44,ry+42,hw,4,2,S.accent,null);
-    e.rrect(44+hw,ry+42,(W-116)-hw,4,2,"rgba(255,255,255,.12)",null);
-    e.txt(String(hv[i]),64,ry+25,19,"#fff","700","left");
-    e.txt(String(av[i]),W-64,ry+25,19,"#fff","700","right");
+/* ── Dark gradient overlay for the bottom panel ── */
+function drawBottomOverlay(ctx, W, H, fromY) {
+  const g = ctx.createLinearGradient(0, fromY, 0, H);
+  g.addColorStop(0,    "rgba(0,0,0,0)");
+  g.addColorStop(0.18, "rgba(0,0,0,.82)");
+  g.addColorStop(0.42, "rgba(0,0,0,.94)");
+  g.addColorStop(1,    "rgba(0,0,0,.98)");
+  ctx.fillStyle = g; ctx.fillRect(0, fromY, W, H - fromY);
+}
+
+/* ── Team block: circular logo + name, placed in bottom section ── */
+function drawTeamBlock(e, S, side, cx, rowY, LR, img, W) {
+  const club = getClub(S, side);
+  e.drawLogo(img, club.emoji, cx, rowY, LR, club.p, club.s);
+  const nameY = rowY + LR + 26;
+  if (S.showAr) {
+    e.txt(club.ar, cx, nameY,     34, "rgba(0,0,0,.4)", "900","center",W*0.28);
+    e.txt(club.ar, cx, nameY - 1, 34, "#fff",           "900","center",W*0.28);
+  }
+  if (S.showEn) {
+    e.txt(club.en, cx, nameY + (S.showAr ? 40 : 0), 14,
+          "rgba(255,255,255,.38)","600","center",W*0.26);
+  }
+  e.rrect(cx - 36, nameY + (S.showAr ? 28 : 8), 72, 2, 1, club.s, null);
+}
+
+/* ── Inline score: [H] [accent dash] [A] centred between logos ── */
+function drawCenterScore(e, S, W, cy) {
+  const ss  = parseInt(S.scoreSize) || 130;
+  const gap = R(ss * 0.68);
+  e.txtStroke(S.hScore||"0", W/2 - gap, cy, ss, "#fff","rgba(0,0,0,.55)","900");
+  const bw = 44, bh = R(ss * 0.55);
+  e.rrect(W/2 - bw/2, cy - bh/2, bw, bh, 5, S.accent, null);
+  e.txt("—", W/2, cy, R(ss * 0.28), "#000","900");
+  e.txtStroke(S.aScore||"0", W/2 + gap, cy, ss, "#fff","rgba(0,0,0,.55)","900");
+}
+
+/* ── Compact 2-row stats (possession + shots) ── */
+function drawCompactStats(e, S, W, y) {
+  [["الاستحواذ",65,35],["التسديدات",7,4]].forEach(([lbl,hv,av],i)=>{
+    const ry = y + i * 40;
+    const total = hv + av || 1;
+    const hw = R((hv/total) * (W - 88));
+    e.rrect(44, ry+22, W-88, 3, 2, "rgba(255,255,255,.1)", null);
+    e.rrect(44, ry+22, hw,   3, 2, S.accent, null);
+    e.txt(String(hv)+"%", 44,   ry+11, 14, "#fff","700","left");
+    e.txt(String(av)+"%", W-44, ry+11, 14, "#fff","700","right");
+    e.txt(lbl, W/2, ry+11, 13, "rgba(255,255,255,.32)","400");
   });
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
    TEMPLATE RENDERERS
+   Shared layout: background image in top ~52%, dark panel at bottom.
+   Bottom panel: [Home logo] [score/VS/time] [Away logo] in one row,
+   team names directly below their logos.
 ═══════════════════════════════════════════════════════════════════════════ */
 function yAt(H, pct) { return Math.round(H * pct); }
+
+/* Shared logo-row constants */
+function logoRow(W, H) {
+  return {
+    LR:   R(W * 0.068),          // logo radius ~73px at 1080
+    hX:   R(W * 0.18),           // home logo centre X
+    aX:   R(W * 0.82),           // away logo centre X
+    botY: yAt(H, 0.52),          // dark overlay starts here
+  };
+}
 
 function renderMatchday(ctx, S, hImg, aImg, bgImg) {
   const sz=CANVAS_SIZES[S.canvasSize], W=sz.w, H=sz.h;
   const e=createEngine(ctx,W,H);
   e.drawBackground(S,bgImg);
   drawTopStrip(e,S,W);
-  drawCompPill(e,S,W,yAt(H,0.12));
-  const logoY=yAt(H,0.585);
-  const logoR=Math.round(W*0.114);
-  drawTeamCol(e,S,"h",W*0.22,logoY,logoR,hImg,aImg,W);
-  drawTeamCol(e,S,"a",W*0.78,logoY,logoR,hImg,aImg,W);
-  drawVSBlock(e,S,W,logoY);
-  const infoY=yAt(H,0.845);
-  drawInfoRow(e,S,W,infoY);
-  e.line(60,infoY-14,W-60,infoY-14,"rgba(255,255,255,.07)",1);
-  drawFooter(e,S,W,H,hImg,aImg);
+
+  const { LR, hX, aX, botY } = logoRow(W, H);
+  drawBottomOverlay(ctx, W, H, botY);
+  drawCompPill(e, S, W, yAt(H, 0.578));
+  drawStatusBadge(e, S, W, yAt(H, 0.628), "MATCHDAY");
+
+  const rowY = yAt(H, 0.718);
+  drawTeamBlock(e, S, "h", hX, rowY, LR, hImg, W);
+  drawTeamBlock(e, S, "a", aX, rowY, LR, aImg, W);
+
+  /* VS ghost + kick-off time pill, centred between the two logos */
+  e.txt("VS", W/2, rowY - 6, 90, "rgba(255,255,255,.04)", "900");
+  const tpw = 200;
+  e.rrect(W/2 - tpw/2, rowY - 22, tpw, 44, 22, "rgba(0,0,0,.72)", S.accent+"88", 2);
+  e.txt(S.time, W/2, rowY, 28, S.accent, "900");
+
+  const infoY = yAt(H, 0.868);
+  drawInfoRow(e, S, W, infoY);
+  e.line(60, infoY-14, W-60, infoY-14, "rgba(255,255,255,.06)", 1);
+  drawFooter(e, S, W, H, hImg, aImg);
 }
 
 function renderFulltime(ctx, S, hImg, aImg, bgImg) {
@@ -322,23 +347,36 @@ function renderFulltime(ctx, S, hImg, aImg, bgImg) {
   const e=createEngine(ctx,W,H);
   e.drawBackground(S,bgImg);
   drawTopStrip(e,S,W);
-  drawCompPill(e,S,W,yAt(H,0.12));
-  drawStatusBadge(e,S,W,yAt(H,0.195),"FULL TIME");
-  const logoY=yAt(H,0.58);
-  const logoR=Math.round(W*0.094);
-  drawTeamCol(e,S,"h",W*0.19,logoY,logoR,hImg,aImg,W);
-  drawTeamCol(e,S,"a",W*0.81,logoY,logoR,hImg,aImg,W);
-  drawScoreBlock(e,S,W,logoY);
-  const scorY=yAt(H,0.765);
-  e.rrect(44,scorY,W-88,96,8,"rgba(0,0,0,.5)","rgba(255,255,255,.08)",1);
-  e.txt("الهدافون",W/2,scorY+24,18,S.accent,"700");
-  e.line(W/2-110,scorY+40,W/2+110,scorY+40,"rgba(255,255,255,.08)",1);
-  e.txt(S.scorers,W/2,scorY+68,23,"rgba(255,255,255,.85)","600","center",W-120);
-  if (S.showStats) drawStats(e,S,W,yAt(H,0.845));
-  const infoY=S.showStats?yAt(H,0.928):yAt(H,0.856);
-  drawInfoRow(e,S,W,infoY);
-  e.line(60,infoY-14,W-60,infoY-14,"rgba(255,255,255,.07)",1);
-  drawFooter(e,S,W,H,hImg,aImg);
+
+  const { LR, hX, aX, botY } = logoRow(W, H);
+  drawBottomOverlay(ctx, W, H, botY);
+
+  /* FULL TIME badge + date subtitle */
+  const badgeY = yAt(H, 0.578);
+  e.rrect(W/2-130, badgeY-18, 260, 36, 4, S.accent, null);
+  e.txt("FULL TIME", W/2, badgeY, 20, "#000","900");
+  e.txt(S.date, W/2, badgeY+28, 15, "rgba(255,255,255,.38)","500");
+
+  drawCompPill(e, S, W, yAt(H, 0.638));
+
+  const rowY = yAt(H, 0.722);
+  drawTeamBlock(e, S, "h", hX, rowY, LR, hImg, W);
+  drawTeamBlock(e, S, "a", aX, rowY, LR, aImg, W);
+  drawCenterScore(e, S, W, rowY);
+
+  /* Scorers line */
+  const nameEndY = rowY + LR + 26 + (S.showAr ? 40 : 0) + (S.showEn ? 20 : 0) + 18;
+  const scorY = Math.max(nameEndY, yAt(H, 0.846));
+  e.txt(S.scorers, W/2, scorY, 20, "rgba(255,255,255,.68)","500","center",W-120);
+
+  if (S.showStats) {
+    drawCompactStats(e, S, W, scorY + 34);
+  } else {
+    const infoY = Math.max(scorY + 44, yAt(H, 0.878));
+    drawInfoRow(e, S, W, infoY);
+    e.line(60, infoY-14, W-60, infoY-14, "rgba(255,255,255,.06)", 1);
+  }
+  drawFooter(e, S, W, H, hImg, aImg);
 }
 
 function renderHalftime(ctx, S, hImg, aImg, bgImg) {
@@ -346,20 +384,26 @@ function renderHalftime(ctx, S, hImg, aImg, bgImg) {
   const e=createEngine(ctx,W,H);
   e.drawBackground(S,bgImg);
   drawTopStrip(e,S,W);
-  drawCompPill(e,S,W,yAt(H,0.12));
-  drawStatusBadge(e,S,W,yAt(H,0.195),"HALF TIME");
-  const logoY=yAt(H,0.56);
-  const logoR=Math.round(W*0.094);
-  drawTeamCol(e,S,"h",W*0.19,logoY,logoR,hImg,aImg,W);
-  drawTeamCol(e,S,"a",W*0.81,logoY,logoR,hImg,aImg,W);
-  drawScoreBlock(e,S,W,logoY);
-  const minW=130;
-  e.rrect(W/2-minW/2,yAt(H,0.73),minW,46,23,S.accent,null);
-  e.txt("45'",W/2,yAt(H,0.73)+23,26,"#000","900");
-  const infoY=yAt(H,0.85);
-  drawInfoRow(e,S,W,infoY);
-  e.line(60,infoY-14,W-60,infoY-14,"rgba(255,255,255,.07)",1);
-  drawFooter(e,S,W,H,hImg,aImg);
+
+  const { LR, hX, aX, botY } = logoRow(W, H);
+  drawBottomOverlay(ctx, W, H, botY);
+  drawCompPill(e, S, W, yAt(H, 0.578));
+  drawStatusBadge(e, S, W, yAt(H, 0.628), "HALF TIME");
+
+  const rowY = yAt(H, 0.718);
+  drawTeamBlock(e, S, "h", hX, rowY, LR, hImg, W);
+  drawTeamBlock(e, S, "a", aX, rowY, LR, aImg, W);
+  drawCenterScore(e, S, W, rowY);
+
+  /* 45' pill below score, in the centre gap */
+  const mpw = 116;
+  e.rrect(W/2 - mpw/2, rowY + 50, mpw, 40, 20, S.accent, null);
+  e.txt("45'", W/2, rowY + 70, 22, "#000","900");
+
+  const infoY = yAt(H, 0.872);
+  drawInfoRow(e, S, W, infoY);
+  e.line(60, infoY-14, W-60, infoY-14, "rgba(255,255,255,.06)", 1);
+  drawFooter(e, S, W, H, hImg, aImg);
 }
 
 function renderNextMatch(ctx, S, hImg, aImg, bgImg) {
@@ -367,91 +411,114 @@ function renderNextMatch(ctx, S, hImg, aImg, bgImg) {
   const e=createEngine(ctx,W,H);
   e.drawBackground(S,bgImg);
   drawTopStrip(e,S,W);
-  drawCompPill(e,S,W,yAt(H,0.12));
-  drawStatusBadge(e,S,W,yAt(H,0.195),"NEXT MATCH");
-  const logoY=yAt(H,0.565);
-  const logoR=Math.round(W*0.114);
-  drawTeamCol(e,S,"h",W*0.22,logoY,logoR,hImg,aImg,W);
-  drawTeamCol(e,S,"a",W*0.78,logoY,logoR,hImg,aImg,W);
-  const tpw=300, tcy=logoY;
-  e.rrect(W/2-tpw/2,tcy-38,tpw,76,38,"rgba(0,0,0,.65)",S.accent+"99",2);
-  e.txt(S.time,W/2,tcy,44,S.accent,"900");
-  const dpw=320;
-  e.rrect(W/2-dpw/2,yAt(H,0.735),dpw,52,6,"rgba(0,0,0,.45)","rgba(255,255,255,.08)",1);
-  e.txt("📅  "+S.date,W/2,yAt(H,0.735)+26,22,"rgba(255,255,255,.7)","600");
-  const infoY=yAt(H,0.845);
-  drawInfoRow(e,S,W,infoY);
-  e.line(60,infoY-14,W-60,infoY-14,"rgba(255,255,255,.07)",1);
-  drawFooter(e,S,W,H,hImg,aImg);
+
+  const { LR, hX, aX, botY } = logoRow(W, H);
+  drawBottomOverlay(ctx, W, H, botY);
+  drawCompPill(e, S, W, yAt(H, 0.578));
+  drawStatusBadge(e, S, W, yAt(H, 0.628), "NEXT MATCH");
+
+  const rowY = yAt(H, 0.718);
+  drawTeamBlock(e, S, "h", hX, rowY, LR, hImg, W);
+  drawTeamBlock(e, S, "a", aX, rowY, LR, aImg, W);
+
+  /* Large time pill centred between logos */
+  const tpw = 240;
+  e.rrect(W/2 - tpw/2, rowY - 28, tpw, 56, 28, "rgba(0,0,0,.72)", S.accent+"99", 2);
+  e.txt(S.time, W/2, rowY, 34, S.accent,"900");
+
+  /* Date badge below the logos (centre X, cleared from logo X positions) */
+  const dateY = rowY + LR + 26;
+  e.rrect(W/2-140, dateY, 280, 42, 6, "rgba(0,0,0,.5)","rgba(255,255,255,.08)",1);
+  e.txt("📅  "+S.date, W/2, dateY+21, 19, "rgba(255,255,255,.65)","600");
+
+  const infoY = yAt(H, 0.880);
+  drawInfoRow(e, S, W, infoY);
+  e.line(60, infoY-14, W-60, infoY-14, "rgba(255,255,255,.06)", 1);
+  drawFooter(e, S, W, H, hImg, aImg);
 }
 
 function renderGoal(ctx, S, hImg, aImg, bgImg) {
   const sz=CANVAS_SIZES[S.canvasSize], W=sz.w, H=sz.h;
   const e=createEngine(ctx,W,H);
   e.drawBackground(S,bgImg);
+
+  /* Golden radial burst behind the upper section */
   ctx.save();
-  const burst=ctx.createRadialGradient(W/2,H*0.52,0,W/2,H*0.52,W*0.65);
-  burst.addColorStop(0,"rgba(230,190,55,.2)"); burst.addColorStop(1,"rgba(0,0,0,0)");
+  const burst=ctx.createRadialGradient(W/2, H*0.3, 0, W/2, H*0.3, W*0.6);
+  burst.addColorStop(0,"rgba(230,190,55,.18)"); burst.addColorStop(1,"rgba(0,0,0,0)");
   ctx.fillStyle=burst; ctx.fillRect(0,0,W,H); ctx.restore();
+
   drawTopStrip(e,S,W);
-  const goalW=W-80;
-  e.rrect(40,yAt(H,0.09),goalW,100,8,S.accent,null);
-  e.txt("⚽  GOAL!",W/2,yAt(H,0.09)+50,54,"#000","900");
-  drawCompPill(e,S,W,yAt(H,0.225));
-  const logoY=yAt(H,0.56);
-  const logoR=Math.round(W*0.094);
-  drawTeamCol(e,S,"h",W*0.19,logoY,logoR,hImg,aImg,W);
-  drawTeamCol(e,S,"a",W*0.81,logoY,logoR,hImg,aImg,W);
-  drawScoreBlock(e,S,W,logoY);
-  const scorY=yAt(H,0.755);
-  e.rrect(44,scorY,W-88,84,8,"rgba(0,0,0,.52)",S.accent+"44",1.5);
-  e.txt("المسجّل",W/2,scorY+22,18,S.accent,"700");
-  e.txt(S.scorers,W/2,scorY+58,26,"#fff","700","center",W-110);
-  const infoY=yAt(H,0.852);
-  drawInfoRow(e,S,W,infoY);
-  e.line(60,infoY-14,W-60,infoY-14,"rgba(255,255,255,.07)",1);
-  drawFooter(e,S,W,H,hImg,aImg);
+
+  /* GOAL! banner pinned to top */
+  e.rrect(40, yAt(H,0.075), W-80, 90, 8, S.accent, null);
+  e.txt("⚽  GOAL!", W/2, yAt(H,0.075)+45, 50, "#000","900");
+
+  const { LR, hX, aX, botY } = logoRow(W, H);
+  drawBottomOverlay(ctx, W, H, botY);
+  drawCompPill(e, S, W, yAt(H, 0.578));
+
+  const rowY = yAt(H, 0.698);
+  drawTeamBlock(e, S, "h", hX, rowY, LR, hImg, W);
+  drawTeamBlock(e, S, "a", aX, rowY, LR, aImg, W);
+  drawCenterScore(e, S, W, rowY);
+
+  /* Scorer card */
+  const scorY = yAt(H, 0.848);
+  e.rrect(44, scorY, W-88, 64, 8, "rgba(0,0,0,.5)", S.accent+"44", 1.5);
+  e.txt("المسجّل", W/2, scorY+17, 15, S.accent,"700");
+  e.txt(S.scorers, W/2, scorY+45, 22, "#fff","700","center",W-110);
+
+  drawFooter(e, S, W, H, hImg, aImg);
 }
 
 function renderMOTM(ctx, S, hImg, aImg, bgImg) {
   const sz=CANVAS_SIZES[S.canvasSize], W=sz.w, H=sz.h;
   const e=createEngine(ctx,W,H);
   e.drawBackground(S,bgImg);
-  const deepOv=ctx.createLinearGradient(0,H*0.32,0,H);
+
+  const deepOv=ctx.createLinearGradient(0,H*0.25,0,H);
   deepOv.addColorStop(0,"rgba(0,0,0,0)");
-  deepOv.addColorStop(0.38,"rgba(0,0,0,.68)");
+  deepOv.addColorStop(0.3,"rgba(0,0,0,.65)");
   deepOv.addColorStop(1,"rgba(0,0,0,.97)");
   ctx.fillStyle=deepOv; ctx.fillRect(0,0,W,H);
+
   drawTopStrip(e,S,W);
   drawCompPill(e,S,W,yAt(H,0.12));
+
   ctx.save(); ctx.strokeStyle=S.accent; ctx.lineWidth=4;
-  const tl=100, tr=W-100;
+  const tl=80, tr=W-80;
   const ty1=yAt(H,0.19), ty2=yAt(H,0.225);
   ctx.beginPath(); ctx.moveTo(tl,ty1); ctx.lineTo(tr,ty1); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(tl,ty2); ctx.lineTo(tr,ty2); ctx.stroke();
   ctx.restore();
-  e.txt("رجل المباراة",W/2,(ty1+ty2)/2,44,S.accent,"900");
-  e.txt("PLAYER  OF  THE  MATCH",W/2,ty2+22,18,"rgba(255,255,255,.3)","600");
-  const scoreY=yAt(H,0.38);
-  const ss=parseInt(S.scoreSize)||160;
-  e.txtStroke(S.hScore||"0",W/2-120,scoreY,ss,"#fff","rgba(0,0,0,.5)","900");
-  e.rrect(W/2-28,scoreY-46,56,92,6,S.accent,null);
-  e.txt("–",W/2,scoreY,42,"#000","900");
-  e.txtStroke(S.aScore||"0",W/2+120,scoreY,ss,"#fff","rgba(0,0,0,.5)","900");
-  const cardY=yAt(H,0.56);
-  const cardH=Math.round(H*0.22);
-  e.rrect(44,cardY,W-88,cardH,12,"rgba(0,0,0,.65)",S.accent+"33",1.5);
-  e.line(46,cardY+58,W-46,cardY+58,"rgba(255,255,255,.07)",1);
-  e.txt("اللاعب",W/2,cardY+30,18,"rgba(255,255,255,.35)","600");
-  e.txt(S.motmName||"اسم اللاعب",W/2,cardY+cardH/2+16,56,"#fff","900","center",W-120);
-  const hc=getClub(S,"h");
-  e.drawLogo(hImg,hc.emoji,W/2-84,cardY+cardH-42,24,hc.p,hc.s);
-  e.txt(hc.ar,W/2-52,cardY+cardH-42,22,"rgba(255,255,255,.55)","700","right");
-  e.txt(S.venue+"  ·  "+S.round,W/2,cardY+cardH-14,17,"rgba(255,255,255,.28)","400");
-  const infoY=yAt(H,0.862);
-  drawInfoRow(e,S,W,infoY);
-  e.line(60,infoY-14,W-60,infoY-14,"rgba(255,255,255,.07)",1);
-  drawFooter(e,S,W,H,hImg,aImg);
+  e.txt("رجل المباراة",W/2,(ty1+ty2)/2,42,S.accent,"900");
+  e.txt("PLAYER  OF  THE  MATCH",W/2,ty2+20,17,"rgba(255,255,255,.28)","600");
+
+  /* Compact score above the player card */
+  const scoreY = yAt(H, 0.36);
+  const ss = R((parseInt(S.scoreSize)||130) * 0.82);
+  e.txtStroke(S.hScore||"0", W/2-R(ss*0.72), scoreY, ss, "#fff","rgba(0,0,0,.5)","900");
+  e.rrect(W/2-22, scoreY-R(ss*0.28), 44, R(ss*0.56), 4, S.accent, null);
+  e.txt("—", W/2, scoreY, R(ss*0.27), "#000","900");
+  e.txtStroke(S.aScore||"0", W/2+R(ss*0.72), scoreY, ss, "#fff","rgba(0,0,0,.5)","900");
+
+  /* Player name card */
+  const cardY = yAt(H, 0.488);
+  const cardH = R(H * 0.192);
+  e.rrect(44, cardY, W-88, cardH, 12, "rgba(0,0,0,.68)", S.accent+"2a", 1.5);
+  e.line(46, cardY+52, W-46, cardY+52, "rgba(255,255,255,.07)", 1);
+  e.txt("اللاعب", W/2, cardY+27, 17, "rgba(255,255,255,.32)","600");
+  e.txt(S.motmName||"اسم اللاعب", W/2, cardY+cardH/2+14, 50, "#fff","900","center",W-120);
+
+  /* Bottom: team logos + venue/round text in centre gap */
+  const { LR, hX, aX } = logoRow(W, H);
+  const rowY = yAt(H, 0.800);
+  drawTeamBlock(e, S, "h", hX, rowY, LR, hImg, W);
+  drawTeamBlock(e, S, "a", aX, rowY, LR, aImg, W);
+  e.txt(S.venue+"  ·  "+S.round, W/2, rowY, 16, "rgba(255,255,255,.35)","500");
+
+  drawFooter(e, S, W, H, hImg, aImg);
 }
 
 const RENDERERS = {
