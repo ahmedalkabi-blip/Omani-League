@@ -49,17 +49,11 @@ const DEFAULT = {
   bgOverlay:0.45, bgBlur:0, bgBrightness:95, bgScale:100,
   bgPosX:50, bgPosY:30, bgFit:"cover",
   bgImage:null, scoreSize:160,
-  /* stats — editable, used by drawStats */
-  hPoss:55, aPoss:45,
-  hShots:8, aShots:4,
-  hPasses:480, aPasses:360,
 };
 
 /* ═══════════════════════════════════════════════════════════════════════════
    DRAW ENGINE
 ═══════════════════════════════════════════════════════════════════════════ */
-
-/* Module-scope rounding helper — used by both the engine and shared helpers */
 const R = x => Math.round(x);
 
 function createEngine(ctx, W, H) {
@@ -145,7 +139,6 @@ function createEngine(ctx, W, H) {
       }
       ctx.drawImage(bgImg,dx,dy,dw,dh);
       ctx.restore();
-
       const fade=ctx.createLinearGradient(0,0,0,H);
       const ov=S.bgOverlay;
       fade.addColorStop(0,   `rgba(0,0,0,${ov*0.25})`);
@@ -237,18 +230,15 @@ function drawTeamCol(e, S, side, cx, logoY, logoR, hImg, aImg, W) {
   const club=getClub(S,side);
   const img=side==="h"?hImg:aImg;
   e.drawLogo(img,club.emoji,cx,logoY,logoR,club.p,club.s);
-
   const arY=logoY+logoR+22+28;
   const enY=arY+54;
-
   if (S.showAr) {
-    e.txt(club.ar,cx,arY,58,"rgba(0,0,0,.45)","900","center",W*0.38);
-    e.txt(club.ar,cx,arY-1,58,"#fff","900","center",W*0.38);
+    e.txt(club.ar,cx,arY,58,"rgba(0,0,0,.45)","900","center",W*0.38, 0);
+    e.txt(club.ar,cx+0,arY-1,58,"#fff","900","center",W*0.38);
   }
   if (S.showEn) {
     e.txt(club.en,cx,enY,20,"rgba(255,255,255,.4)","600","center",W*0.36);
   }
-
   const uw=100;
   e.rrect(cx-uw/2,arY+34,uw,3,2,club.s,null);
 }
@@ -262,7 +252,7 @@ function drawVSBlock(e, S, W, cy) {
 
 function drawScoreBlock(e, S, W, cy) {
   const ss=parseInt(S.scoreSize)||160;
-  const bw=500, bh=R(ss*1.5);
+  const bw=500, bh=Math.round(ss*1.5);
   e.rrect(W/2-bw/2,cy-bh/2,bw,bh,14,"rgba(0,0,0,.6)","rgba(255,255,255,.1)",1.2);
   e.txtStroke(S.hScore||"0",W/2-bw/2+110,cy,ss,"#fff","rgba(0,0,0,.5)","900");
   e.rrect(W/2-26,cy-40,52,80,6,S.accent,null);
@@ -275,7 +265,6 @@ function drawInfoRow(e, S, W, y) {
   e.rrect(44,y,rw,rh,6,"rgba(0,0,0,.5)","rgba(255,255,255,.08)",1);
   e.txt("📍",44+26,y+28,20,"rgba(255,255,255,.45)","400","left");
   e.txt(S.venue,44+52,y+28,19,"rgba(255,255,255,.75)","600","left",rw-64);
-
   e.rrect(W/2+6,y,rw,rh,6,"rgba(0,0,0,.5)","rgba(255,255,255,.08)",1);
   e.txt("🏆",W/2+6+26,y+28,20,"rgba(255,255,255,.45)","400","left");
   e.txt(S.round,W/2+6+52,y+28,19,"rgba(255,255,255,.75)","600","left",rw-64);
@@ -291,21 +280,18 @@ function drawFooter(e, S, W, H, hImg, aImg) {
   e.drawLogo(aImg,ac.emoji,W-52,fy+44,22,ac.p,ac.s);
 }
 
-/* Stats rows — values come from state (S.hPoss/aPoss, hShots/aShots, hPasses/aPasses) */
 function drawStats(e, S, W, y) {
   const labels=["الاستحواذ","التسديدات","التمريرات"];
-  const hv=[S.hPoss, S.hShots, S.hPasses];
-  const av=[S.aPoss, S.aShots, S.aPasses];
+  const hv=[65,7,480], av=[35,4,360];
   labels.forEach((lbl,i)=>{
     const ry=y+i*66;
     e.rrect(44,ry,W-88,50,6,"rgba(0,0,0,.38)","rgba(255,255,255,.07)",1);
     e.txt(lbl,W/2,ry+25,17,"rgba(255,255,255,.4)","600");
-    const total=(hv[i]||0)+(av[i]||0)||1;
-    const hw=R(((hv[i]||0)/total)*(W-116));
+    const total=hv[i]+av[i], hw=R((hv[i]/total)*(W-116));
     e.rrect(44,ry+42,hw,4,2,S.accent,null);
     e.rrect(44+hw,ry+42,(W-116)-hw,4,2,"rgba(255,255,255,.12)",null);
-    e.txt(String(hv[i]??0),64,ry+25,19,"#fff","700","left");
-    e.txt(String(av[i]??0),W-64,ry+25,19,"#fff","700","right");
+    e.txt(String(hv[i]),64,ry+25,19,"#fff","700","left");
+    e.txt(String(av[i]),W-64,ry+25,19,"#fff","700","right");
   });
 }
 
@@ -318,16 +304,13 @@ function renderMatchday(ctx, S, hImg, aImg, bgImg) {
   const sz=CANVAS_SIZES[S.canvasSize], W=sz.w, H=sz.h;
   const e=createEngine(ctx,W,H);
   e.drawBackground(S,bgImg);
-
   drawTopStrip(e,S,W);
   drawCompPill(e,S,W,yAt(H,0.12));
-
   const logoY=yAt(H,0.585);
-  const logoR=R(W*0.114);
+  const logoR=Math.round(W*0.114);
   drawTeamCol(e,S,"h",W*0.22,logoY,logoR,hImg,aImg,W);
   drawTeamCol(e,S,"a",W*0.78,logoY,logoR,hImg,aImg,W);
   drawVSBlock(e,S,W,logoY);
-
   const infoY=yAt(H,0.845);
   drawInfoRow(e,S,W,infoY);
   e.line(60,infoY-14,W-60,infoY-14,"rgba(255,255,255,.07)",1);
@@ -338,25 +321,20 @@ function renderFulltime(ctx, S, hImg, aImg, bgImg) {
   const sz=CANVAS_SIZES[S.canvasSize], W=sz.w, H=sz.h;
   const e=createEngine(ctx,W,H);
   e.drawBackground(S,bgImg);
-
   drawTopStrip(e,S,W);
   drawCompPill(e,S,W,yAt(H,0.12));
   drawStatusBadge(e,S,W,yAt(H,0.195),"FULL TIME");
-
   const logoY=yAt(H,0.58);
-  const logoR=R(W*0.094);
+  const logoR=Math.round(W*0.094);
   drawTeamCol(e,S,"h",W*0.19,logoY,logoR,hImg,aImg,W);
   drawTeamCol(e,S,"a",W*0.81,logoY,logoR,hImg,aImg,W);
   drawScoreBlock(e,S,W,logoY);
-
   const scorY=yAt(H,0.765);
   e.rrect(44,scorY,W-88,96,8,"rgba(0,0,0,.5)","rgba(255,255,255,.08)",1);
   e.txt("الهدافون",W/2,scorY+24,18,S.accent,"700");
   e.line(W/2-110,scorY+40,W/2+110,scorY+40,"rgba(255,255,255,.08)",1);
   e.txt(S.scorers,W/2,scorY+68,23,"rgba(255,255,255,.85)","600","center",W-120);
-
   if (S.showStats) drawStats(e,S,W,yAt(H,0.845));
-
   const infoY=S.showStats?yAt(H,0.928):yAt(H,0.856);
   drawInfoRow(e,S,W,infoY);
   e.line(60,infoY-14,W-60,infoY-14,"rgba(255,255,255,.07)",1);
@@ -367,21 +345,17 @@ function renderHalftime(ctx, S, hImg, aImg, bgImg) {
   const sz=CANVAS_SIZES[S.canvasSize], W=sz.w, H=sz.h;
   const e=createEngine(ctx,W,H);
   e.drawBackground(S,bgImg);
-
   drawTopStrip(e,S,W);
   drawCompPill(e,S,W,yAt(H,0.12));
   drawStatusBadge(e,S,W,yAt(H,0.195),"HALF TIME");
-
   const logoY=yAt(H,0.56);
-  const logoR=R(W*0.094);
+  const logoR=Math.round(W*0.094);
   drawTeamCol(e,S,"h",W*0.19,logoY,logoR,hImg,aImg,W);
   drawTeamCol(e,S,"a",W*0.81,logoY,logoR,hImg,aImg,W);
   drawScoreBlock(e,S,W,logoY);
-
   const minW=130;
   e.rrect(W/2-minW/2,yAt(H,0.73),minW,46,23,S.accent,null);
   e.txt("45'",W/2,yAt(H,0.73)+23,26,"#000","900");
-
   const infoY=yAt(H,0.85);
   drawInfoRow(e,S,W,infoY);
   e.line(60,infoY-14,W-60,infoY-14,"rgba(255,255,255,.07)",1);
@@ -392,24 +366,19 @@ function renderNextMatch(ctx, S, hImg, aImg, bgImg) {
   const sz=CANVAS_SIZES[S.canvasSize], W=sz.w, H=sz.h;
   const e=createEngine(ctx,W,H);
   e.drawBackground(S,bgImg);
-
   drawTopStrip(e,S,W);
   drawCompPill(e,S,W,yAt(H,0.12));
   drawStatusBadge(e,S,W,yAt(H,0.195),"NEXT MATCH");
-
   const logoY=yAt(H,0.565);
-  const logoR=R(W*0.114);
+  const logoR=Math.round(W*0.114);
   drawTeamCol(e,S,"h",W*0.22,logoY,logoR,hImg,aImg,W);
   drawTeamCol(e,S,"a",W*0.78,logoY,logoR,hImg,aImg,W);
-
   const tpw=300, tcy=logoY;
   e.rrect(W/2-tpw/2,tcy-38,tpw,76,38,"rgba(0,0,0,.65)",S.accent+"99",2);
   e.txt(S.time,W/2,tcy,44,S.accent,"900");
-
   const dpw=320;
   e.rrect(W/2-dpw/2,yAt(H,0.735),dpw,52,6,"rgba(0,0,0,.45)","rgba(255,255,255,.08)",1);
   e.txt("📅  "+S.date,W/2,yAt(H,0.735)+26,22,"rgba(255,255,255,.7)","600");
-
   const infoY=yAt(H,0.845);
   drawInfoRow(e,S,W,infoY);
   e.line(60,infoY-14,W-60,infoY-14,"rgba(255,255,255,.07)",1);
@@ -420,30 +389,24 @@ function renderGoal(ctx, S, hImg, aImg, bgImg) {
   const sz=CANVAS_SIZES[S.canvasSize], W=sz.w, H=sz.h;
   const e=createEngine(ctx,W,H);
   e.drawBackground(S,bgImg);
-
   ctx.save();
   const burst=ctx.createRadialGradient(W/2,H*0.52,0,W/2,H*0.52,W*0.65);
   burst.addColorStop(0,"rgba(230,190,55,.2)"); burst.addColorStop(1,"rgba(0,0,0,0)");
   ctx.fillStyle=burst; ctx.fillRect(0,0,W,H); ctx.restore();
-
   drawTopStrip(e,S,W);
-
   const goalW=W-80;
   e.rrect(40,yAt(H,0.09),goalW,100,8,S.accent,null);
   e.txt("⚽  GOAL!",W/2,yAt(H,0.09)+50,54,"#000","900");
   drawCompPill(e,S,W,yAt(H,0.225));
-
   const logoY=yAt(H,0.56);
-  const logoR=R(W*0.094);
+  const logoR=Math.round(W*0.094);
   drawTeamCol(e,S,"h",W*0.19,logoY,logoR,hImg,aImg,W);
   drawTeamCol(e,S,"a",W*0.81,logoY,logoR,hImg,aImg,W);
   drawScoreBlock(e,S,W,logoY);
-
   const scorY=yAt(H,0.755);
   e.rrect(44,scorY,W-88,84,8,"rgba(0,0,0,.52)",S.accent+"44",1.5);
   e.txt("المسجّل",W/2,scorY+22,18,S.accent,"700");
   e.txt(S.scorers,W/2,scorY+58,26,"#fff","700","center",W-110);
-
   const infoY=yAt(H,0.852);
   drawInfoRow(e,S,W,infoY);
   e.line(60,infoY-14,W-60,infoY-14,"rgba(255,255,255,.07)",1);
@@ -454,43 +417,37 @@ function renderMOTM(ctx, S, hImg, aImg, bgImg) {
   const sz=CANVAS_SIZES[S.canvasSize], W=sz.w, H=sz.h;
   const e=createEngine(ctx,W,H);
   e.drawBackground(S,bgImg);
-
   const deepOv=ctx.createLinearGradient(0,H*0.32,0,H);
   deepOv.addColorStop(0,"rgba(0,0,0,0)");
   deepOv.addColorStop(0.38,"rgba(0,0,0,.68)");
   deepOv.addColorStop(1,"rgba(0,0,0,.97)");
   ctx.fillStyle=deepOv; ctx.fillRect(0,0,W,H);
-
   drawTopStrip(e,S,W);
   drawCompPill(e,S,W,yAt(H,0.12));
-
   ctx.save(); ctx.strokeStyle=S.accent; ctx.lineWidth=4;
+  const tl=100, tr=W-100;
   const ty1=yAt(H,0.19), ty2=yAt(H,0.225);
-  ctx.beginPath(); ctx.moveTo(100,ty1); ctx.lineTo(W-100,ty1); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(100,ty2); ctx.lineTo(W-100,ty2); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(tl,ty1); ctx.lineTo(tr,ty1); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(tl,ty2); ctx.lineTo(tr,ty2); ctx.stroke();
   ctx.restore();
   e.txt("رجل المباراة",W/2,(ty1+ty2)/2,44,S.accent,"900");
   e.txt("PLAYER  OF  THE  MATCH",W/2,ty2+22,18,"rgba(255,255,255,.3)","600");
-
   const scoreY=yAt(H,0.38);
   const ss=parseInt(S.scoreSize)||160;
   e.txtStroke(S.hScore||"0",W/2-120,scoreY,ss,"#fff","rgba(0,0,0,.5)","900");
   e.rrect(W/2-28,scoreY-46,56,92,6,S.accent,null);
   e.txt("–",W/2,scoreY,42,"#000","900");
   e.txtStroke(S.aScore||"0",W/2+120,scoreY,ss,"#fff","rgba(0,0,0,.5)","900");
-
   const cardY=yAt(H,0.56);
-  const cardH=R(H*0.22);
+  const cardH=Math.round(H*0.22);
   e.rrect(44,cardY,W-88,cardH,12,"rgba(0,0,0,.65)",S.accent+"33",1.5);
   e.line(46,cardY+58,W-46,cardY+58,"rgba(255,255,255,.07)",1);
   e.txt("اللاعب",W/2,cardY+30,18,"rgba(255,255,255,.35)","600");
   e.txt(S.motmName||"اسم اللاعب",W/2,cardY+cardH/2+16,56,"#fff","900","center",W-120);
-
   const hc=getClub(S,"h");
   e.drawLogo(hImg,hc.emoji,W/2-84,cardY+cardH-42,24,hc.p,hc.s);
   e.txt(hc.ar,W/2-52,cardY+cardH-42,22,"rgba(255,255,255,.55)","700","right");
   e.txt(S.venue+"  ·  "+S.round,W/2,cardY+cardH-14,17,"rgba(255,255,255,.28)","400");
-
   const infoY=yAt(H,0.862);
   drawInfoRow(e,S,W,infoY);
   e.line(60,infoY-14,W-60,infoY-14,"rgba(255,255,255,.07)",1);
@@ -591,9 +548,9 @@ function Accordion({title,defaultOpen=false,children,accent}) {
    TEAM PANEL
 ═══════════════════════════════════════════════════════════════════════════ */
 function TeamPanel({side,S,U,onLogo}) {
+  const isH=side==="h";
   const p=side;
   const active=S[`${p}NameAr`];
-  const isH=side==="h";
   return (
     <>
       <F label="اختر النادي">
@@ -652,7 +609,7 @@ function BgPanel({S,U,onBgLoad,onBgRemove}) {
               ✕ حذف
             </button>
           </div>
-          <SliderRow label="الإظلام"   value={R(S.bgOverlay*100)} onChange={v=>U("bgOverlay",v/100)} min={0} max={100} unit="%"/>
+          <SliderRow label="الإظلام"   value={Math.round(S.bgOverlay*100)} onChange={v=>U("bgOverlay",v/100)} min={0} max={100} unit="%"/>
           <SliderRow label="السطوع"    value={S.bgBrightness} onChange={v=>U("bgBrightness",v)} min={20} max={150} unit="%"/>
           <SliderRow label="الضبابية"  value={S.bgBlur}       onChange={v=>U("bgBlur",v)}       min={0} max={20}  unit="px"/>
           <SliderRow label="التكبير"   value={S.bgScale}      onChange={v=>U("bgScale",v)}      min={50} max={200} unit="%"/>
@@ -682,7 +639,7 @@ function BgPanel({S,U,onBgLoad,onBgRemove}) {
 /* ═══════════════════════════════════════════════════════════════════════════
    MAIN APP
 ═══════════════════════════════════════════════════════════════════════════ */
-export default function OmaniLeagueDesigner() {
+export default function App() {
   const [S,setS]        = useState({...DEFAULT});
   const [zoom,setZoom]  = useState(0);
   const [hImg,setHImg]  = useState(null);
@@ -757,8 +714,8 @@ export default function OmaniLeagueDesigner() {
   },[S.postType,S.canvasSize]);
 
   const sz=CANVAS_SIZES[S.canvasSize];
-  const cW=R(zoom*sz.w);
-  const cH=R(zoom*sz.h);
+  const cW=Math.round(zoom*sz.w);
+  const cH=Math.round(zoom*sz.h);
   const hasScore=["fulltime","halftime","goal","motm"].includes(S.postType);
   const hasMOTM =S.postType==="motm";
 
@@ -788,7 +745,6 @@ export default function OmaniLeagueDesigner() {
             <div className="text-[8px] tracking-[.14em]" style={{color:"rgba(255,255,255,.25)"}}>OMANTEL LEAGUE POST DESIGNER</div>
           </div>
         </div>
-
         <div className="flex items-center gap-1 rounded-lg p-1"
           style={{background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.08)"}}>
           <span className="text-[9px] px-1" style={{color:"rgba(255,255,255,.28)"}}>تكبير</span>
@@ -804,7 +760,6 @@ export default function OmaniLeagueDesigner() {
             className="px-2 py-0.5 rounded text-[10px] font-bold"
             style={{color:"rgba(255,255,255,.35)"}}>ملاءمة</button>
         </div>
-
         <div className="flex items-center gap-2">
           <span className="text-[9px] rounded px-2 py-1 hidden sm:block"
             style={{color:"rgba(255,255,255,.22)",border:"1px solid rgba(255,255,255,.08)"}}>
@@ -854,12 +809,11 @@ export default function OmaniLeagueDesigner() {
         <aside className="w-[268px] flex-shrink-0 overflow-y-auto"
           style={{background:"#0d0d1a",borderRight:"1px solid rgba(255,255,255,.07)"}}>
 
-          {/* 1. POST TYPE */}
           <Accordion title="نوع البوست" defaultOpen={true}>
             <div className="grid grid-cols-2 gap-1.5 mt-0.5">
               {POST_TYPES.map(pt=>(
                 <button key={pt.id}
-                  onClick={()=>U("postType",pt.id)}
+                  onClick={()=>{U("postType",pt.id);U("title",pt.ar);}}
                   className="py-2 px-2 rounded border text-[11px] font-bold transition-all leading-tight text-center"
                   style={{
                     background:S.postType===pt.id?"#e8c84a":"rgba(255,255,255,.04)",
@@ -872,7 +826,6 @@ export default function OmaniLeagueDesigner() {
             </div>
           </Accordion>
 
-          {/* 2. CANVAS SIZE */}
           <Accordion title="حجم الكانفاس">
             <div className="grid grid-cols-3 gap-1.5 mt-0.5">
               {Object.entries(CANVAS_SIZES).map(([k,v])=>(
@@ -891,9 +844,8 @@ export default function OmaniLeagueDesigner() {
             </div>
           </Accordion>
 
-          {/* 3. MATCH DETAILS */}
           <Accordion title="تفاصيل المباراة" defaultOpen={true}>
-            <div className="mt-0.5">
+            <div className="mt-0.5 space-y-0">
               <F label="البطولة (عربي)"><Inp value={S.comp}    onChange={v=>U("comp",v)}/></F>
               <F label="البطولة (إنجليزي)"><Inp value={S.compEn} onChange={v=>U("compEn",v)} dir="ltr"/></F>
               <div className="grid grid-cols-2 gap-2">
@@ -906,24 +858,21 @@ export default function OmaniLeagueDesigner() {
             </div>
           </Accordion>
 
-          {/* 4. HOME TEAM */}
           <Accordion title="الفريق المضيف" defaultOpen={true} accent="text-yellow-400/70">
             <div className="mt-0.5">
               <TeamPanel side="h" S={S} U={U} onLogo={e=>loadLogo("h",e)}/>
             </div>
           </Accordion>
 
-          {/* 5. AWAY TEAM */}
           <Accordion title="الفريق الضيف" defaultOpen={true} accent="text-blue-400/70">
             <div className="mt-0.5">
               <TeamPanel side="a" S={S} U={U} onLogo={e=>loadLogo("a",e)}/>
             </div>
           </Accordion>
 
-          {/* 6. SCORE */}
           {hasScore && (
             <Accordion title="النتيجة والهدافون" defaultOpen={true} accent="text-green-400/70">
-              <div className="mt-0.5">
+              <div className="mt-0.5 space-y-0">
                 <div className="grid grid-cols-2 gap-2">
                   <F label="أهداف المضيف"><Inp type="number" min="0" max="20" value={S.hScore} onChange={v=>U("hScore",v)} dir="ltr"/></F>
                   <F label="أهداف الضيف"> <Inp type="number" min="0" max="20" value={S.aScore} onChange={v=>U("aScore",v)} dir="ltr"/></F>
@@ -931,37 +880,20 @@ export default function OmaniLeagueDesigner() {
                 <F label="الهدافون"><Tx value={S.scorers} onChange={v=>U("scorers",v)}/></F>
                 {hasMOTM&&<F label="رجل المباراة"><Inp value={S.motmName} onChange={v=>U("motmName",v)}/></F>}
                 <SliderRow label="حجم النتيجة" value={S.scoreSize||160} onChange={v=>U("scoreSize",v)} min={80} max={220} unit="px"/>
-
-                {/* Stats inputs — visible when stats overlay is enabled */}
-                {S.showStats && (
-                  <div className="mt-2 pt-2 border-t border-white/[0.07]">
-                    <div className="text-[9px] text-white/25 text-right mb-2 tracking-widest uppercase">الإحصائيات</div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <F label="استحواذ المضيف %"><Inp type="number" min="0" max="100" value={S.hPoss}   onChange={v=>U("hPoss",+v)}   dir="ltr"/></F>
-                      <F label="استحواذ الضيف %"> <Inp type="number" min="0" max="100" value={S.aPoss}   onChange={v=>U("aPoss",+v)}   dir="ltr"/></F>
-                      <F label="تسديدات المضيف">  <Inp type="number" min="0"           value={S.hShots}  onChange={v=>U("hShots",+v)}  dir="ltr"/></F>
-                      <F label="تسديدات الضيف">   <Inp type="number" min="0"           value={S.aShots}  onChange={v=>U("aShots",+v)}  dir="ltr"/></F>
-                      <F label="تمريرات المضيف">  <Inp type="number" min="0"           value={S.hPasses} onChange={v=>U("hPasses",+v)} dir="ltr"/></F>
-                      <F label="تمريرات الضيف">   <Inp type="number" min="0"           value={S.aPasses} onChange={v=>U("aPasses",+v)} dir="ltr"/></F>
-                    </div>
-                  </div>
-                )}
               </div>
             </Accordion>
           )}
 
-          {/* 7. BACKGROUND */}
           <Accordion title="الخلفية">
             <div className="mt-0.5">
               <BgPanel S={S} U={U} onBgLoad={loadBg} onBgRemove={removeBg}/>
             </div>
           </Accordion>
 
-          {/* 8. DESIGN SETTINGS */}
           <Accordion title="إعدادات التصميم">
-            <div className="mt-0.5">
+            <div className="mt-0.5 space-y-0">
               <F label="لون التمييز"><ColPick value={S.accent} onChange={v=>U("accent",v)}/></F>
-              <div className="mt-1.5">
+              <div className="mt-1.5 space-y-0">
                 <Tog value={S.showAr}       onChange={v=>U("showAr",v)}       label="الأسماء العربية"/>
                 <Tog value={S.showEn}       onChange={v=>U("showEn",v)}       label="الأسماء الإنجليزية"/>
                 <Tog value={S.showDate}     onChange={v=>U("showDate",v)}     label="إظهار التاريخ"/>
@@ -972,7 +904,6 @@ export default function OmaniLeagueDesigner() {
             </div>
           </Accordion>
 
-          {/* 9. EXPORT */}
           <Accordion title="التصدير" defaultOpen={true}>
             <div className="mt-0.5">
               <button onClick={dlPNG} disabled={dl}
