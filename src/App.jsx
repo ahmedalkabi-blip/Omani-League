@@ -573,38 +573,233 @@ function renderNextMatch(ctx, S, hImg, aImg, bgImg) {
 }
 
 function renderGoal(ctx, S, hImg, aImg, bgImg) {
-  const sz=CANVAS_SIZES[S.canvasSize], W=sz.w, H=sz.h;
-  const e=createEngine(ctx,W,H);
-  e.drawBackground(S,bgImg);
+  const sz = CANVAS_SIZES[S.canvasSize], W = sz.w, H = sz.h;
+  const e  = createEngine(ctx, W, H);
+  const acc = S.accent;
 
-  /* Golden radial burst behind the upper section */
+  /* ── 1. BACKGROUND: Deep Navy + Glow Effects ──────────────────────────── */
+  // Base deep-blue → dark-navy gradient
+  const bg = ctx.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0,    "#0c1230");
+  bg.addColorStop(0.32, "#091028");
+  bg.addColorStop(0.65, "#060c1e");
+  bg.addColorStop(1,    "#020408");
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+
+  // Electric-blue glow — upper section (behind GOAL! text)
+  const blueG = ctx.createRadialGradient(W/2, H*0.13, 0, W/2, H*0.13, W*0.65);
+  blueG.addColorStop(0,   "rgba(30,80,255,.24)");
+  blueG.addColorStop(0.45,"rgba(20,50,220,.07)");
+  blueG.addColorStop(1,   "rgba(0,0,0,0)");
+  ctx.fillStyle = blueG; ctx.fillRect(0, 0, W, H);
+
+  // Gold glow — player circle zone
+  const goldG = ctx.createRadialGradient(W/2, H*0.40, 0, W/2, H*0.40, W*0.55);
+  goldG.addColorStop(0,   "rgba(232,200,74,.20)");
+  goldG.addColorStop(0.50,"rgba(200,160,30,.06)");
+  goldG.addColorStop(1,   "rgba(0,0,0,0)");
+  ctx.fillStyle = goldG; ctx.fillRect(0, 0, W, H);
+
+  // Diagonal motion lines (speed / dynamism)
   ctx.save();
-  const burst=ctx.createRadialGradient(W/2, H*0.3, 0, W/2, H*0.3, W*0.6);
-  burst.addColorStop(0,"rgba(230,190,55,.18)"); burst.addColorStop(1,"rgba(0,0,0,0)");
-  ctx.fillStyle=burst; ctx.fillRect(0,0,W,H); ctx.restore();
+  const tilt = Math.tan(Math.PI / 5.8);          // ~31°
+  for (let i = 0; i < 10; i++) {
+    const x0    = W * (-0.08 + i * 0.145);
+    const heavy = i % 3 === 0;
+    ctx.globalAlpha = heavy ? 0.09 : 0.035;
+    ctx.strokeStyle = "#7ab4ff";
+    ctx.lineWidth   = heavy ? 2.5 : 1.2;
+    ctx.beginPath();
+    ctx.moveTo(x0,              0);
+    ctx.lineTo(x0 + H * tilt,  H);
+    ctx.stroke();
+  }
+  ctx.restore();
 
-  drawTopStrip(e,S,W);
+  // Hex grid (blue-tinted, subtle)
+  e.hexPattern("#5a9aff", 0.022);
 
-  /* GOAL! banner pinned to top */
-  e.rrect(40, yAt(H,0.075), W-80, 90, 8, S.accent, null);
-  e.txt("⚽  GOAL!", W/2, yAt(H,0.075)+45, 50, "#000","900");
+  /* ── 2. TOP CORNER PILLS (date | compEn) ──────────────────────────────── */
+  if (S.showDate) {
+    e.rrect(36, 28, 220, 44, 8, "rgba(0,0,12,.60)", "rgba(80,140,255,.28)", 1);
+    e.txt(S.date, 146, 50, 18, "rgba(255,255,255,.75)", "600");
+  }
+  if (S.showSponsor) {
+    e.rrect(W-256, 28, 220, 44, 8, "rgba(0,0,12,.60)", "rgba(80,140,255,.28)", 1);
+    e.txt(S.compEn, W-146, 50, 15, "rgba(255,255,255,.55)", "600");
+  }
 
-  const { LR, hX, aX, botY } = logoRow(W, H);
-  drawBottomOverlay(ctx, S, W, H, botY);
-  drawCompPill(e, S, W, yAt(H, 0.578));
+  /* ── 3. STARBURST + GOAL! TEXT ────────────────────────────────────────── */
+  const goalCY   = yAt(H, 0.145);
+  const goalSize = R(W * 0.148);
 
-  const rowY = yAt(H, 0.698);
-  drawTeamBlock(e, S, "h", hX, rowY, LR, hImg, W);
-  drawTeamBlock(e, S, "a", aX, rowY, LR, aImg, W);
-  drawCenterScore(e, S, W, rowY);
+  // Starburst rays radiating from GOAL! centre
+  ctx.save(); ctx.translate(W/2, goalCY);
+  for (let i = 0; i < 16; i++) {
+    const a   = (i / 16) * Math.PI * 2;
+    const len = W * (i % 2 === 0 ? 0.42 : 0.26);
+    ctx.globalAlpha = i % 2 === 0 ? 0.17 : 0.08;
+    ctx.strokeStyle = acc;
+    ctx.lineWidth   = i % 2 === 0 ? 3 : 1.5;
+    ctx.beginPath(); ctx.moveTo(0, 0);
+    ctx.lineTo(Math.cos(a) * len, Math.sin(a) * len);
+    ctx.stroke();
+  }
+  ctx.restore();
 
-  /* Scorer card */
-  const scorY = yAt(H, 0.848);
-  e.rrect(44, scorY, W-88, 64, 8, "rgba(0,0,0,.5)", S.accent+"44", 1.5);
-  e.txt("المسجّل", W/2, scorY+17, 15, S.accent,"700");
-  e.txt(S.scorers, W/2, scorY+45, 22, "#fff","700","center",W-110);
+  // Gold halo behind GOAL!
+  const gHalo = ctx.createRadialGradient(W/2, goalCY, 0, W/2, goalCY, W*0.46);
+  gHalo.addColorStop(0,    "rgba(232,200,74,.32)");
+  gHalo.addColorStop(0.38, "rgba(232,200,74,.08)");
+  gHalo.addColorStop(1,    "rgba(0,0,0,0)");
+  ctx.fillStyle = gHalo; ctx.fillRect(0, 0, W, H);
 
-  drawFooter(e, S, W, H, hImg, aImg);
+  // GOAL! — three draw passes: soft glow → mid glow → crisp sharp
+  ctx.save();
+  ctx.font = `900 ${goalSize}px 'Cairo','Tajawal',sans-serif`;
+  ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.direction = "ltr";
+  ctx.fillStyle = "#ffe066";
+  ctx.shadowColor = "#ffe066";
+  ctx.shadowBlur = 80;  ctx.globalAlpha = 0.55; ctx.fillText("GOAL!", W/2, goalCY);
+  ctx.shadowBlur = 38;  ctx.globalAlpha = 0.80; ctx.fillText("GOAL!", W/2, goalCY);
+  ctx.shadowBlur = 12;  ctx.globalAlpha = 1.00; ctx.fillText("GOAL!", W/2, goalCY);
+  ctx.restore();
+
+  // Arabic هدف! subtitle below
+  e.txt("⚽  هدف!", W/2, goalCY + R(goalSize * 0.66),
+        R(goalSize * 0.34), "rgba(232,200,74,.68)", "700");
+
+  /* ── 4. PLAYER/LOGO CIRCLE — large dominant hero element ─────────────── */
+  const playerCY = yAt(H, 0.405);
+  const playerR  = R(Math.min(W * 0.22, H * 0.19));
+  const hc = getClub(S, "h");
+
+  // Outer pulse rings
+  ctx.save();
+  ctx.globalAlpha = 0.13; ctx.strokeStyle = acc;
+  e.circ(W/2, playerCY, playerR + 22, null, acc, 2);
+  ctx.globalAlpha = 0.07;
+  e.circ(W/2, playerCY, playerR + 40, null, acc, 1.5);
+  ctx.restore();
+
+  // Gold border ring with glow
+  ctx.save();
+  ctx.shadowColor = "#e8c84a"; ctx.shadowBlur = 28;
+  e.circ(W/2, playerCY, playerR + 5, "#b8920a", null);
+  ctx.restore();
+  e.circ(W/2, playerCY, playerR + 2, "#e8c84a", null);
+  e.circ(W/2, playerCY, playerR,     "#091028", null);  // dark fill
+
+  // Image inside the circle
+  if (hImg) {
+    const innerD = R(playerR * 0.80) * 2;
+    const tb = getLogoTightBounds(hImg);
+    const scale = Math.min(innerD / tb.w, innerD / tb.h);
+    const dw = R(tb.w * scale), dh = R(tb.h * scale);
+    ctx.save();
+    ctx.beginPath(); ctx.arc(W/2, playerCY, playerR - 1, 0, Math.PI * 2); ctx.clip();
+    ctx.drawImage(hImg, tb.x, tb.y, tb.w, tb.h,
+                  R(W/2 - dw/2), R(playerCY - dh/2), dw, dh);
+    ctx.restore();
+  } else {
+    ctx.save();
+    ctx.font = `${R(playerR * 1.08)}px serif`;
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(hc.emoji, W/2, playerCY);
+    ctx.restore();
+  }
+
+  /* ── 5. DARK FADE — bottom panel ─────────────────────────────────────── */
+  const fadeY = yAt(H, 0.555);
+  const fade  = ctx.createLinearGradient(0, fadeY, 0, H);
+  fade.addColorStop(0,    "rgba(0,0,0,0)");
+  fade.addColorStop(0.12, "rgba(3,7,20,.74)");
+  fade.addColorStop(0.35, "rgba(3,7,20,.93)");
+  fade.addColorStop(1,    "rgba(1,3,10,.98)");
+  ctx.fillStyle = fade; ctx.fillRect(0, fadeY, W, H - fadeY);
+
+  /* ── 6. LOGOS + SCORE ROW ─────────────────────────────────────────────── */
+  const rowY = yAt(H, 0.682);
+  const LR   = R(W * 0.082);
+  const hX   = R(W * 0.185);
+  const aX   = R(W * 0.815);
+  const ac   = getClub(S, "a");
+
+  // Club logos — gold rings (the user requested gold-bordered circles)
+  e.drawLogo(hImg, hc.emoji, hX, rowY, LR, "#e8c84a", "#b8920a");
+  e.drawLogo(aImg, ac.emoji, aX, rowY, LR, "#e8c84a", "#b8920a");
+
+  // Club names
+  const nameY = rowY + LR + 24;
+  if (S.showAr) {
+    e.txt(hc.ar, hX, nameY, 28, "#fff", "900", "center", W * 0.26);
+    e.txt(ac.ar, aX, nameY, 28, "#fff", "900", "center", W * 0.26);
+  }
+  if (S.showEn) {
+    const enY = nameY + (S.showAr ? 34 : 0);
+    e.txt(hc.en, hX, enY, 13, "rgba(255,255,255,.38)", "600", "center", W * 0.24);
+    e.txt(ac.en, aX, enY, 13, "rgba(255,255,255,.38)", "600", "center", W * 0.24);
+  }
+  // Secondary-colour accent underline
+  e.rrect(hX - 30, nameY + (S.showAr ? 22 : 4), 60, 2, 1, hc.s, null);
+  e.rrect(aX - 30, nameY + (S.showAr ? 22 : 4), 60, 2, 1, ac.s, null);
+
+  // Score — 3D gold effect
+  const ss  = R((parseInt(S.scoreSize) || 130) * 0.90);
+  const gap = R(ss * 0.67);
+
+  // 3D depth pass (dark offset behind)
+  ctx.save(); ctx.globalAlpha = 0.55;
+  e.txt(S.hScore || "0", W/2 - gap + 5, rowY + 7, ss, "#5a3800", "900");
+  e.txt(S.aScore || "0", W/2 + gap + 5, rowY + 7, ss, "#333",    "900");
+  ctx.restore();
+
+  // Home score — gold with neon glow
+  ctx.save();
+  ctx.shadowColor = "#ffe066"; ctx.shadowBlur = 24;
+  e.txtStroke(S.hScore || "0", W/2 - gap, rowY, ss, "#ffe066", "rgba(0,0,0,.35)", "900");
+  ctx.restore();
+
+  // Away score — white
+  e.txtStroke(S.aScore || "0", W/2 + gap, rowY, ss, "#fff", "rgba(0,0,0,.35)", "900");
+
+  // Separator dash
+  const bw = 40, bh = R(ss * 0.48);
+  e.rrect(W/2 - bw/2, rowY - bh/2, bw, bh, 5, acc, null);
+  e.txt("—", W/2, rowY, R(ss * 0.28), "#000", "900");
+
+  /* ── 7. SCORER BAR ────────────────────────────────────────────────────── */
+  const barPad = 38;
+  const barY   = yAt(H, 0.833);
+  const barH   = R(H * 0.054);
+  const barW   = W - barPad * 2;
+
+  // Horizontal gradient: darker gold → bright gold → darker gold
+  const barG = ctx.createLinearGradient(barPad, 0, barPad + barW, 0);
+  barG.addColorStop(0,   "#c8a820");
+  barG.addColorStop(0.5, "#ffe066");
+  barG.addColorStop(1,   "#c8a820");
+  ctx.save();
+  ctx.beginPath(); ctx.roundRect(barPad, barY, barW, barH, barH / 2);
+  ctx.fillStyle = barG; ctx.fill();
+  ctx.restore();
+
+  // Ball icon (RTL: near right end of bar)
+  e.txt("⚽", W - barPad - R(barH * 0.60), barY + barH / 2,
+        R(barH * 0.52), "#1a1200", "400", "center");
+
+  // Scorer name + time centred in bar
+  const scorers = S.scorers || "اسم الهداف";
+  e.txt(scorers, W/2 - R(barH * 0.15), barY + barH / 2,
+        R(barH * 0.44), "#0a0800", "900", "center", barW - barH - 28);
+
+  /* ── 8. FOOTER ────────────────────────────────────────────────────────── */
+  if (S.showBranding) {
+    const fy = yAt(H, 0.914);
+    e.line(80, fy, W - 80, fy, "rgba(255,255,255,.07)", 1);
+    e.txt(S.comp,   W/2, fy + 20, 19, "rgba(255,255,255,.27)", "600");
+    e.txt(S.footer, W/2, fy + 52, 15, "rgba(255,255,255,.15)", "400");
+  }
 }
 
 function renderMOTM(ctx, S, hImg, aImg, bgImg) {
