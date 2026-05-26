@@ -3,19 +3,24 @@ import { useState, useRef, useEffect, useCallback } from "react";
 /* ═══════════════════════════════════════════════════════════════════════════
    DATA
 ═══════════════════════════════════════════════════════════════════════════ */
+/* Jindal League 2026-2027 — 14 clubs
+   logo field = path under /public; auto-loaded when club selected.
+   Drop PNG files into public/logos/clubs/ to activate them.         */
 const CLUBS = {
-  seeb:    { ar:"السيب",    en:"AL-SEEB",    p:"#1a3a6e", s:"#c8a84b", e:"⚽" },
-  dhofar:  { ar:"ظفار",    en:"DHOFAR",     p:"#005c2b", s:"#f5c800", e:"🦁" },
-  nahda:   { ar:"النهضة",  en:"AL-NAHDA",   p:"#b50000", s:"#f0d000", e:"🔴" },
-  nasr:    { ar:"النصر",   en:"AL-NASR",    p:"#002e99", s:"#f5c800", e:"⭐" },
-  oman:    { ar:"عمان",    en:"OMAN CLUB",  p:"#a00000", s:"#008800", e:"🇴🇲" },
-  rustaq:  { ar:"الرستاق", en:"AL-RUSTAQ",  p:"#c04a00", s:"#dddddd", e:"🔶" },
-  sohar:   { ar:"صحار",    en:"SOHAR",      p:"#004faa", s:"#f0a000", e:"💙" },
-  muscat:  { ar:"مسقط",   en:"MUSCAT FC",  p:"#4a0066", s:"#c088ff", e:"💜" },
-  nizwa:   { ar:"نزوى",   en:"NIZWA",      p:"#004422", s:"#eeeeee", e:"🟢" },
-  sur:     { ar:"صور",    en:"SUR",        p:"#6a3300", s:"#ffbb00", e:"🟠" },
-  bahla:   { ar:"بهلاء",  en:"BAHLA",      p:"#1a1a5e", s:"#d4aa50", e:"🔵" },
-  bousher: { ar:"بوشر",   en:"BOUSHER",    p:"#005544", s:"#ffee44", e:"🟡" },
+  nahda:    { ar:"النهضة",  en:"AL-NAHDA",    slug:"al-nahda",    logo:"/logos/clubs/al-nahda.png",    p:"#b50000", s:"#f0d000", e:"🔴" },
+  nasr:     { ar:"النصر",   en:"AL-NASR",     slug:"al-nasr",     logo:"/logos/clubs/al-nasr.png",     p:"#002e99", s:"#f5c800", e:"⭐" },
+  shabab:   { ar:"الشباب",  en:"AL-SHABAB",   slug:"al-shabab",   logo:"/logos/clubs/al-shabab.png",   p:"#1a1a1a", s:"#f5c800", e:"🟡" },
+  seeb:     { ar:"السيب",   en:"AL-SEEB",     slug:"al-seeb",     logo:"/logos/clubs/al-seeb.png",     p:"#1a3a6e", s:"#c8a84b", e:"⚽" },
+  sur:      { ar:"صور",     en:"SUR",         slug:"sur",         logo:"/logos/clubs/sur.png",         p:"#6a3300", s:"#ffbb00", e:"🟠" },
+  sohar:    { ar:"صحار",    en:"SOHAR",       slug:"sohar",       logo:"/logos/clubs/sohar.png",       p:"#004faa", s:"#f0a000", e:"💙" },
+  oman:     { ar:"عُمان",   en:"OMAN CLUB",   slug:"oman-club",   logo:"/logos/clubs/oman-club.png",   p:"#a00000", s:"#008800", e:"🇴🇲" },
+  bahla:    { ar:"بهلاء",   en:"BAHLA",       slug:"bahla",       logo:"/logos/clubs/bahla.png",       p:"#1a1a5e", s:"#d4aa50", e:"🔵" },
+  ibri:     { ar:"عبري",    en:"IBRI",        slug:"ibri",        logo:"/logos/clubs/ibri.png",        p:"#003399", s:"#f0f0f0", e:"🏔️" },
+  saham:    { ar:"صحم",     en:"SAHAM",       slug:"saham",       logo:"/logos/clubs/saham.png",       p:"#006633", s:"#f0f0f0", e:"🌊" },
+  samail:   { ar:"سمائل",   en:"SAMAIL",      slug:"samail",      logo:"/logos/clubs/samail.png",      p:"#cc0000", s:"#f0f0f0", e:"🔶" },
+  dhofar:   { ar:"ظفار",    en:"DHOFAR",      slug:"dhofar",      logo:"/logos/clubs/dhofar.png",      p:"#005c2b", s:"#f5c800", e:"🦁" },
+  fanja:    { ar:"فنجاء",   en:"FANJA",       slug:"fanja",       logo:"/logos/clubs/fanja.png",       p:"#004488", s:"#f0d000", e:"🟣" },
+  musannah: { ar:"المصنعة", en:"AL-MUSANNAH", slug:"al-musannah", logo:"/logos/clubs/al-musannah.png", p:"#8b0000", s:"#f0c030", e:"🔺" },
 };
 
 const CANVAS_SIZES = {
@@ -196,12 +201,15 @@ function createEngine(ctx, W, H) {
    SHARED LAYOUT HELPERS
 ═══════════════════════════════════════════════════════════════════════════ */
 function getClub(S, side) {
+  const match = Object.values(CLUBS).find(c => c.ar === S[`${side}NameAr`]);
   return {
     ar:    S[`${side}NameAr`],
     en:    S[`${side}NameEn`],
     p:     S[`${side}Primary`],
     s:     S[`${side}Secondary`],
-    emoji: Object.values(CLUBS).find(c=>c.ar===S[`${side}NameAr`])?.e || (side==="h"?"⚽":"🦁"),
+    emoji: match?.e    || (side === "h" ? "⚽" : "🦁"),
+    slug:  match?.slug || null,
+    logo:  match?.logo || null,
   };
 }
 
@@ -721,32 +729,36 @@ function Accordion({title,defaultOpen=false,children,accent}) {
 /* ═══════════════════════════════════════════════════════════════════════════
    TEAM PANEL
 ═══════════════════════════════════════════════════════════════════════════ */
-function TeamPanel({side,S,U,onLogo}) {
-  const isH=side==="h";
-  const p=side;
-  const active=S[`${p}NameAr`];
+function TeamPanel({side, S, U, onLogo, onClubLogo}) {
+  const isH = side === "h";
+  const p   = side;
+  const active = S[`${p}NameAr`];
+
+  function applyClub(c) {
+    U(`${p}NameAr`, c.ar); U(`${p}NameEn`, c.en);
+    U(`${p}Primary`, c.p); U(`${p}Secondary`, c.s);
+    if (onClubLogo) onClubLogo(c.logo);
+  }
+
   return (
     <>
       <F label="اختر النادي">
-        <Sel value="" onChange={key=>{
-          if (!CLUBS[key]) return;
-          const c=CLUBS[key];
-          U(`${p}NameAr`,c.ar); U(`${p}NameEn`,c.en);
-          U(`${p}Primary`,c.p); U(`${p}Secondary`,c.s);
+        <Sel value="" onChange={key => {
+          if (CLUBS[key]) applyClub(CLUBS[key]);
         }}>
           <option value="">— اختر النادي —</option>
-          {Object.entries(CLUBS).map(([k,c])=>(
+          {Object.entries(CLUBS).map(([k, c]) => (
             <option key={k} value={k}>نادي {c.ar} — {c.en}</option>
           ))}
         </Sel>
       </F>
-      <div className="grid grid-cols-6 gap-1 mb-2">
-        {Object.entries(CLUBS).map(([k,c])=>{
-          const on=active===c.ar;
+      <div className="grid grid-cols-7 gap-1 mb-2">
+        {Object.entries(CLUBS).map(([k, c]) => {
+          const on = active === c.ar;
           return (
             <button key={k} title={`نادي ${c.ar}`}
-              onClick={()=>{U(`${p}NameAr`,c.ar);U(`${p}NameEn`,c.en);U(`${p}Primary`,c.p);U(`${p}Secondary`,c.s);}}
-              className={`rounded py-1 text-[15px] border transition-all ${on?(isH?"border-yellow-400 bg-yellow-400/10":"border-blue-400 bg-blue-400/10"):"border-white/[0.07] bg-white/[0.03] hover:border-white/20"}`}>
+              onClick={() => applyClub(c)}
+              className={`rounded py-1 text-[13px] border transition-all ${on ? (isH ? "border-yellow-400 bg-yellow-400/10" : "border-blue-400 bg-blue-400/10") : "border-white/[0.07] bg-white/[0.03] hover:border-white/20"}`}>
               {c.e}
             </button>
           );
@@ -915,6 +927,19 @@ function Designer({ onBack }) {
 
   const removeBg=useCallback(()=>{setBgImg(null);U("bgImage",null);},[U]);
 
+  /* Auto-load a club logo by URL when a club is selected.
+     Silently does nothing if the file doesn't exist yet.  */
+  const tryLoadClubLogo = useCallback((side, url) => {
+    if (!url) return;
+    const img = new Image();
+    img.onload = () => {
+      if (side === "h") { setHImg(img); U("hLogo", url); }
+      else              { setAImg(img); U("aLogo", url); }
+    };
+    img.onerror = () => {}; // logo file not present yet — fallback to emoji
+    img.src = url;
+  }, [U]);
+
   const dlPNG=useCallback(()=>{
     const canvas=canvasRef.current; if (!canvas) return;
     setDl(true);
@@ -1081,13 +1106,13 @@ function Designer({ onBack }) {
 
           <Accordion title="الفريق المضيف" defaultOpen={true} accent="text-yellow-400/70">
             <div className="mt-0.5">
-              <TeamPanel side="h" S={S} U={U} onLogo={e=>loadLogo("h",e)}/>
+              <TeamPanel side="h" S={S} U={U} onLogo={e=>loadLogo("h",e)} onClubLogo={url=>tryLoadClubLogo("h",url)}/>
             </div>
           </Accordion>
 
           <Accordion title="الفريق الضيف" defaultOpen={true} accent="text-blue-400/70">
             <div className="mt-0.5">
-              <TeamPanel side="a" S={S} U={U} onLogo={e=>loadLogo("a",e)}/>
+              <TeamPanel side="a" S={S} U={U} onLogo={e=>loadLogo("a",e)} onClubLogo={url=>tryLoadClubLogo("a",url)}/>
             </div>
           </Accordion>
 
