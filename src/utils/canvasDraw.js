@@ -1,6 +1,20 @@
-/* ─── Canvas Drawing Utilities v3 — Premium Editorial Design ─── */
+/* ─── Canvas Drawing Utilities v4 ────────────────────────────────────────
+ *
+ * Portrait export: 1080 × 1350.  Internal canvas: 540 × 675 (÷2).
+ * All spec values below are in INTERNAL portrait coords (= export ÷ 2).
+ *
+ * Zone map (internal, portrait H = 675):
+ *   Hero area    y = 0   – 310   (export 0   – 620)
+ *   Match zone   y = 310 – 565   (export 620 – 1130)
+ *   Footer zone  y = 565 – 675   (export 1130 – 1350)
+ *
+ * P(n, H)  →  scales a portrait-internal value to current H.
+ * ─────────────────────────────────────────────────────────────────────── */
 
-/* Text helper */
+/* Scale a portrait-internal pixel value to the current canvas height */
+function P(n, H) { return Math.round(n * H / 675); }
+
+/* ── Typography helper ─────────────────────────────────────────────────── */
 export function ft(ctx, text, x, y, size, color = "#fff", weight = "900", align = "center", mw) {
   ctx.font         = `${weight} ${size}px 'Cairo', sans-serif`;
   ctx.fillStyle    = color;
@@ -9,25 +23,10 @@ export function ft(ctx, text, x, y, size, color = "#fff", weight = "900", align 
   mw ? ctx.fillText(text, x, y, mw) : ctx.fillText(text, x, y);
 }
 
-/* Subtle diagonal texture */
-function diagTexture(ctx, W, H, alpha = 0.022) {
-  ctx.save();
-  ctx.globalAlpha = alpha;
-  ctx.strokeStyle = "#fff";
-  ctx.lineWidth   = 1;
-  for (let i = -H; i < W + H; i += 24) {
-    ctx.beginPath();
-    ctx.moveTo(i, 0);
-    ctx.lineTo(i + H, H);
-    ctx.stroke();
-  }
-  ctx.restore();
-}
-
-/* Hex grid texture (MOTM only) */
+/* ── Hex grid (MOTM background texture) ───────────────────────────────── */
 export function hexGrid(ctx, col, W, H) {
   ctx.save();
-  ctx.globalAlpha = 0.05;
+  ctx.globalAlpha = 0.055;
   ctx.strokeStyle = col;
   ctx.lineWidth   = 1;
   for (let r = -1; r < Math.ceil(H / 100) + 1; r++) {
@@ -43,28 +42,53 @@ export function hexGrid(ctx, col, W, H) {
   ctx.restore();
 }
 
-/* Background image — fills topFrac of canvas height */
-export function drawUImg(ctx, uImg, op, sc, W, H, topFrac = 0.52) {
-  if (!uImg) return;
-  const tH    = H * topFrac;
-  const scale = sc / 100;
-  const f     = Math.max(W / uImg.naturalWidth, tH / uImg.naturalHeight) * scale;
-  const dw    = uImg.naturalWidth  * f;
-  const dh    = uImg.naturalHeight * f;
+/* ── Diagonal line texture ─────────────────────────────────────────────── */
+function diagTexture(ctx, W, H, alpha = 0.018) {
   ctx.save();
-  ctx.globalAlpha = op / 100;
-  ctx.drawImage(uImg, (W - dw) / 2, (tH - dh) / 2, dw, dh);
+  ctx.globalAlpha = alpha;
+  ctx.strokeStyle = "#fff";
+  ctx.lineWidth   = 0.8;
+  for (let i = -H; i < W + H; i += 26) {
+    ctx.beginPath();
+    ctx.moveTo(i, 0);
+    ctx.lineTo(i + H, H);
+    ctx.stroke();
+  }
   ctx.restore();
 }
 
-/* Linear gradient dark overlay */
-function darkOverlay(ctx, W, H, stops) {
+/* ── Hero image: cover-fills heroH, clipped, no blur ─────────────────── */
+export function drawUImg(ctx, uImg, op, sc, W, H, topFrac) {
+  // topFrac kept for API compat; heroH derived from it when called externally
+  if (!uImg) return;
+  const heroH = topFrac !== undefined ? Math.round(H * topFrac) : H;
+  _drawHero(ctx, uImg, op, sc, W, heroH);
+}
+
+function _drawHero(ctx, uImg, op, sc, W, heroH) {
+  if (!uImg) return;
+  const scale = sc / 100;
+  const f     = Math.max(W / uImg.naturalWidth, heroH / uImg.naturalHeight) * scale;
+  const dw    = uImg.naturalWidth  * f;
+  const dh    = uImg.naturalHeight * f;
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, 0, W, heroH);           // clip to hero zone — no overflow
+  ctx.clip();
+  ctx.globalAlpha = op / 100;
+  ctx.drawImage(uImg, (W - dw) / 2, (heroH - dh) / 2, dw, dh);
+  ctx.restore();
+}
+
+/* ── Dark gradient overlay ─────────────────────────────────────────────── */
+function overlay(ctx, W, H, stops) {
   const g = ctx.createLinearGradient(0, 0, 0, H);
   stops.forEach(([p, a]) => g.addColorStop(p, `rgba(0,0,0,${a})`));
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, W, H);
 }
 
+/* ── Primitives ────────────────────────────────────────────────────────── */
 export function circle(ctx, x, y, r, fill, stroke, sw = 2.5) {
   ctx.save();
   ctx.beginPath();
@@ -85,325 +109,383 @@ export function roundRect(ctx, x, y, w, h, rad, fill, stroke, alpha) {
   ctx.restore();
 }
 
+function line(ctx, x1, y1, x2, y2, color, lw = 0.8) {
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth   = lw;
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+  ctx.restore();
+}
+
 function parseScore(score) {
   const parts = (score || "0 - 0").split(/\s*[-–:]\s*/);
   return [parts[0]?.trim() || "0", parts[1]?.trim() || "0"];
 }
 
-/* Gradient accent divider line */
-function accentLine(ctx, W, y, hc, ac) {
-  const g = ctx.createLinearGradient(0, 0, W, 0);
-  g.addColorStop(0,    "rgba(0,0,0,0)");
-  g.addColorStop(0.08, hc.s);
-  g.addColorStop(0.50, "rgba(255,255,255,.28)");
-  g.addColorStop(0.92, ac.s);
-  g.addColorStop(1,    "rgba(0,0,0,0)");
-  ctx.save();
-  ctx.strokeStyle = g;
-  ctx.lineWidth   = 1.5;
-  ctx.beginPath();
-  ctx.moveTo(24, y);
-  ctx.lineTo(W - 24, y);
-  ctx.stroke();
-  ctx.restore();
-}
-
-/* Club logo circle with glow */
+/* ── Club logo circle with soft glow ──────────────────────────────────── */
 function logoCircle(ctx, x, y, r, club) {
   ctx.save();
   ctx.shadowColor = club.s;
-  ctx.shadowBlur  = 18;
-  circle(ctx, x, y, r, club.p, club.s, 2.5);
+  ctx.shadowBlur  = Math.round(r * 0.55);
+  circle(ctx, x, y, r, club.p, club.s, Math.max(2, r * 0.055));
   ctx.restore();
-  ft(ctx, club.b, x, y, Math.round(r * 0.74));
+  ft(ctx, club.b, x, y, Math.round(r * 0.76));
 }
 
-/* Premium footer — shared across all templates */
-function drawFooter(ctx, W, H, hc, ac) {
-  const fH = 46;
-  const fY = H - fH;
+/* ── Gradient accent divider ───────────────────────────────────────────── */
+function accentDivider(ctx, W, y, hc, ac, lw = 1.5) {
+  const g = ctx.createLinearGradient(0, 0, W, 0);
+  g.addColorStop(0,    "rgba(0,0,0,0)");
+  g.addColorStop(0.06, hc.s);
+  g.addColorStop(0.50, "rgba(255,255,255,.30)");
+  g.addColorStop(0.94, ac.s);
+  g.addColorStop(1,    "rgba(0,0,0,0)");
+  ctx.save();
+  ctx.strokeStyle = g;
+  ctx.lineWidth   = lw;
+  ctx.beginPath(); ctx.moveTo(20, y); ctx.lineTo(W - 20, y); ctx.stroke();
+  ctx.restore();
+}
 
-  ctx.fillStyle = "rgba(0,0,0,.85)";
+/* ── Top bar: date left, league badge right ────────────────────────────── */
+function drawTopBar(ctx, W, S) {
+  ft(ctx, S.date || "", 18, 24, 10.5, "rgba(255,255,255,.82)", "600", "left");
+  roundRect(ctx, W - 164, 10, 152, 27, 13, "rgba(0,0,0,.65)", "rgba(255,255,255,.18)");
+  ft(ctx, "🇴🇲  دوري عُمانتل", W - 88, 23.5, 10, "#facc15", "700");
+}
+
+/* ── Shared premium footer ─────────────────────────────────────────────── */
+function drawFooter(ctx, W, H, hc, ac) {
+  const fY = P(565, H);
+  const fH = H - fY;
+  const cx = W / 2;
+
+  /* Dark background */
+  ctx.fillStyle = "rgba(0,0,0,.90)";
   ctx.fillRect(0, fY, W, fH);
 
-  /* Club-color accent line at footer top */
-  const lg = ctx.createLinearGradient(0, 0, W, 0);
-  lg.addColorStop(0,    hc.p);
-  lg.addColorStop(0.28, hc.s);
-  lg.addColorStop(0.72, ac.s);
-  lg.addColorStop(1,    ac.p);
-  ctx.save();
-  ctx.globalAlpha = 0.88;
-  ctx.fillStyle   = lg;
+  /* Club-color gradient line at top of footer */
+  const cg = ctx.createLinearGradient(0, 0, W, 0);
+  cg.addColorStop(0,    hc.p);
+  cg.addColorStop(0.25, hc.s);
+  cg.addColorStop(0.75, ac.s);
+  cg.addColorStop(1,    ac.p);
+  ctx.save(); ctx.globalAlpha = 0.92; ctx.fillStyle = cg;
   ctx.fillRect(0, fY, W, 2.5);
   ctx.restore();
 
-  /* Small Oman flag logo left */
-  ft(ctx, "🇴🇲", 22, fY + 23, 14, "#fff", "400");
+  /* Thin secondary divider at 1160 export = 580 internal */
+  const divY = P(580, H);
+  line(ctx, 28, divY, W - 28, divY, "rgba(255,255,255,.07)");
 
-  /* League name */
-  ft(ctx, "دوري عُمانتل للمحترفين", W / 2, fY + 16, 10.5, "rgba(255,255,255,.58)", "700");
-  /* Social / hashtag */
-  ft(ctx, "#OmantelLeague  •  omantelleague.om", W / 2, fY + 33, 8, "rgba(255,255,255,.22)", "400");
+  /* Oman flag mark — bottom left */
+  ft(ctx, "🇴🇲", 22, fY + Math.round(fH * 0.46), 13, "#fff", "400");
+
+  /* League name Arabic — center */
+  ft(ctx, "دوري عُمانتل للمحترفين", cx, fY + Math.round(fH * 0.33), 10.5, "rgba(255,255,255,.62)", "700");
+
+  /* League name English — center */
+  ft(ctx, "OMANTEL PROFESSIONAL LEAGUE", cx, fY + Math.round(fH * 0.52), 7, "rgba(255,255,255,.28)", "400");
+
+  /* Website / handle */
+  ft(ctx, "@OmantelLeague  •  omantelleague.om", cx, fY + Math.round(fH * 0.72), 8, "rgba(255,255,255,.22)", "400");
 }
 
-/* ═══════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════════════
    MATCH DAY
-   Image: top 52 % visible, fades to dark below 43 %
-   Logo row: 64 % of H (portrait) / 52 % (square)
-═══════════════════════════════════════════════════════════════ */
+   ─────────────────────────────────────────────────────────────────────
+   Spec (export px → internal px for portrait H=675):
+     Hero image:   0 – 620   →  0 – 310
+     Logo center:  y = 760   →  y = 380    (below hero zone)
+     Logo radius:  85        →  43
+     Home logo:    x = 270   →  x = 135
+     Away logo:    x = 810   →  x = 405
+     VS:           x = 540, y = 760  →  x = 270, y = 380
+     Time pill:    y = 865   →  y = 433
+     Arabic names: y = 910   →  y = 455    font 46 → 23
+     English names:y = 955   →  y = 478    font 20 → 10
+     Round/venue:  y = 1040  →  y = 520
+═══════════════════════════════════════════════════════════════════════ */
 export function drawMatchDay(ctx, S, hc, ac, uImg, W = 540, H = 675) {
-  const cx         = W / 2;
-  const isPortrait = H > W;
+  const cx = W / 2;
 
-  /* ── Base background ── */
-  const bg = ctx.createLinearGradient(0, 0, 0, H);
-  bg.addColorStop(0,    hc.p);
-  bg.addColorStop(0.48, "#04040e");
-  bg.addColorStop(1,    ac.p);
-  ctx.fillStyle = bg;
+  /* ── 1. Base background ── */
+  ctx.fillStyle = "#04040e";
   ctx.fillRect(0, 0, W, H);
+
+  /* Club-color atmospheric vignettes in lower area */
+  const hv = ctx.createRadialGradient(0, H, 0, 0, H, W * 0.9);
+  hv.addColorStop(0, hc.p + "66"); hv.addColorStop(1, "transparent");
+  ctx.fillStyle = hv; ctx.fillRect(0, 0, W, H);
+
+  const av = ctx.createRadialGradient(W, H, 0, W, H, W * 0.9);
+  av.addColorStop(0, ac.p + "66"); av.addColorStop(1, "transparent");
+  ctx.fillStyle = av; ctx.fillRect(0, 0, W, H);
 
   diagTexture(ctx, W, H);
 
-  /* ── Hero image — top 52 % ── */
-  drawUImg(ctx, uImg, S.op, S.sc, W, H, 0.52);
+  /* ── 2. Hero image — covers top heroH pixels, clipped ── */
+  const heroH = P(310, H);
+  _drawHero(ctx, uImg, S.op, S.sc, W, heroH);
 
-  /* ── Gradient overlay: image bright in top 40 %, dark below 55 % ── */
-  darkOverlay(ctx, W, H, [
-    [0,    0.02],
-    [0.28, 0.06],
-    [0.40, 0.28],
-    [0.52, 0.68],
-    [0.66, 0.88],
-    [1,    0.97],
+  /* ── 3. Gradient overlay
+         Top of hero: 12% dark (image clearly visible)
+         Bottom of hero: 88% dark (fades into match zone)
+         Match zone: ~96% dark  ── */
+  const heroFrac  = heroH / H;
+  overlay(ctx, W, H, [
+    [0,              0.12],
+    [heroFrac * 0.4, 0.20],
+    [heroFrac * 0.8, 0.72],
+    [heroFrac,       0.88],
+    [1,              0.97],
   ]);
 
-  /* ── TOP BAR ── */
-  ft(ctx, S.date || "", 18, 24, 10.5, "rgba(255,255,255,.78)", "600", "left");
-  roundRect(ctx, W - 162, 11, 150, 27, 13, "rgba(0,0,0,.62)", "rgba(255,255,255,.18)");
-  ft(ctx, "🇴🇲  دوري عُمانتل", W - 87, 24.5, 10, "#facc15", "700");
+  /* ── 4. TOP BAR ── */
+  drawTopBar(ctx, W, S);
 
-  /* ── COMPETITION LABEL — centered pill ── */
-  roundRect(ctx, cx - 102, 47, 204, 31, 15, "#facc15");
-  ft(ctx, "يوم المباراة", cx, 62.5, 15, "#000", "900");
+  /* ── 5. POST TYPE LABEL (near bottom of hero zone) ── */
+  const labelY = P(258, H);   // export: 516 — sits just above match zone
+  roundRect(ctx, cx - 96, labelY - 14, 192, 28, 14, "#facc15");
+  ft(ctx, "يوم المباراة", cx, labelY, 14, "#000", "900");
 
-  /* ── LOGOS + VS ── */
-  const logoR = Math.round(W * 0.092);                          // ~50 px
-  const logoY = Math.round(H * (isPortrait ? 0.638 : 0.518));  // portrait: ~431, square: ~280
-  const homeX = Math.round(W * 0.195);                         // ~105
-  const awayX = Math.round(W * 0.805);                         // ~435
+  /* ── 6. LOGOS + VS ── */
+  const logoY = P(380, H);    // export: 760
+  const logoR = P(43,  H);    // export: 85px radius (170px diameter)
+  const homeX = Math.round(W * 0.25);   // 135  (export: 270)
+  const awayX = Math.round(W * 0.75);   // 405  (export: 810)
 
   logoCircle(ctx, homeX, logoY, logoR, hc);
   logoCircle(ctx, awayX, logoY, logoR, ac);
 
-  /* VS ghost behind logos */
-  ft(ctx, "VS", cx, logoY - 4, Math.round(logoR * 1.22), "rgba(255,255,255,.05)", "900");
+  /* VS — large, semi-visible, sits center between logos */
+  ft(ctx, "VS", cx, logoY, P(44, H), "rgba(255,255,255,.38)", "900");
 
-  /* ── TIME PILL ── */
-  const timeY = logoY + logoR + 20;
-  roundRect(ctx, cx - 74, timeY - 14, 148, 29, 14,
-    "rgba(250,204,21,.12)", "rgba(250,204,21,.38)");
-  ft(ctx, S.time, cx, timeY, 17, "#facc15", "800");
+  /* ── 7. TIME PILL ── */
+  const timeY  = P(433, H);   // export: 865
+  const pillW  = P(148, H);
+  const pillH  = P(29, H);
+  roundRect(ctx, cx - pillW / 2, timeY - pillH / 2, pillW, pillH, P(14, H),
+    "rgba(250,204,21,.14)", "rgba(250,204,21,.40)");
+  ft(ctx, S.time, cx, timeY, P(17, H), "#facc15", "800");
 
-  /* ── TEAM NAMES ── */
-  const nameY = timeY + 28;
-  ft(ctx, hc.n, homeX, nameY,      14.5, "#fff",                  "900", "center", 148);
-  ft(ctx, hc.e, homeX, nameY + 20,  8.5, "rgba(255,255,255,.32)", "400");
-  ft(ctx, ac.n, awayX, nameY,      14.5, "#fff",                  "900", "center", 148);
-  ft(ctx, ac.e, awayX, nameY + 20,  8.5, "rgba(255,255,255,.32)", "400");
+  /* ── 8. ARABIC TEAM NAMES ── */
+  const arNameY = P(455, H);  // export: 910
+  const arFont  = P(23,  H);  // export: 46
+  const arMaxW  = Math.round(W * 0.35);
+  ft(ctx, hc.n, homeX, arNameY, arFont, "#fff",                  "900", "center", arMaxW);
+  ft(ctx, ac.n, awayX, arNameY, arFont, "#fff",                  "900", "center", arMaxW);
 
-  /* ── ACCENT DIVIDER ── */
-  const divY = nameY + 36;
-  accentLine(ctx, W, divY, hc, ac);
+  /* ── 9. ENGLISH TEAM NAMES ── */
+  const enNameY = P(476, H);  // export: 952
+  const enFont  = P(10,  H);  // export: 20
+  ft(ctx, hc.e, homeX, enNameY, enFont, "rgba(255,255,255,.36)", "400");
+  ft(ctx, ac.e, awayX, enNameY, enFont, "rgba(255,255,255,.36)", "400");
 
-  /* ── BOTTOM INFO ROW (round + venue) ── */
-  const rowY = divY + 18;
-  roundRect(ctx, cx - 72, rowY - 12, 144, 25, 12,
-    "rgba(255,255,255,.06)", "rgba(255,255,255,.16)");
-  ft(ctx, S.round,   cx, rowY,      12.5, "rgba(255,255,255,.75)", "700");
-  ft(ctx, S.stadium, cx, rowY + 24, 11.5, "rgba(255,255,255,.42)", "400", "center", 370);
+  /* ── 10. ACCENT DIVIDER ── */
+  const divY = P(496, H);     // export: 992
+  accentDivider(ctx, W, divY, hc, ac);
 
+  /* ── 11. ROUND + VENUE INFO ROW ── */
+  const infoY  = P(516, H);   // export: 1032
+  const venueY = P(538, H);   // export: 1076
+
+  /* Round pill */
+  const rpW = P(144, H);
+  roundRect(ctx, cx - rpW / 2, infoY - P(13, H), rpW, P(26, H), P(13, H),
+    "rgba(255,255,255,.06)", "rgba(255,255,255,.18)");
+  ft(ctx, S.round, cx, infoY, P(12, H), "rgba(255,255,255,.80)", "700");
+
+  /* Venue */
+  ft(ctx, S.stadium, cx, venueY, P(11, H), "rgba(255,255,255,.46)", "400", "center", Math.round(W * 0.82));
+
+  /* ── 12. FOOTER ── */
   drawFooter(ctx, W, H, hc, ac);
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   FINAL SCORE
-   Layout: status badge → score + logos on same row → names →
-           scorers box → venue → footer
-═══════════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════════════
+   FINAL SCORE / HALF TIME
+   ─────────────────────────────────────────────────────────────────────
+   Spec (export → internal, portrait H=675):
+     Status badge:  x=540, y=620    →  x=270, y=310
+     Score row:     x=540, y=760    →  x=270, y=380   font 110→55
+     Home logo:     x=250, y=760    →  x=125, y=380   r=43
+     Away logo:     x=830, y=760    →  x=415, y=380   r=43
+     Arabic names:  y=910           →  y=455
+     Scorers box:   y=1000–1090     →  y=500–545
+     Venue:         below scorers
+═══════════════════════════════════════════════════════════════════════ */
 export function drawFinalScore(ctx, S, hc, ac, uImg, W = 540, H = 675) {
-  const cx         = W / 2;
-  const isPortrait = H > W;
+  const cx = W / 2;
 
-  /* ── Base background ── */
-  const bg = ctx.createLinearGradient(0, 0, 0, H);
-  bg.addColorStop(0,    hc.p);
-  bg.addColorStop(0.44, "#04040e");
-  bg.addColorStop(1,    ac.p);
-  ctx.fillStyle = bg;
+  /* ── 1. Base background ── */
+  ctx.fillStyle = "#04040e";
   ctx.fillRect(0, 0, W, H);
 
-  diagTexture(ctx, W, H, 0.028);
+  const hv = ctx.createRadialGradient(0, H, 0, 0, H, W * 0.85);
+  hv.addColorStop(0, hc.p + "77"); hv.addColorStop(1, "transparent");
+  ctx.fillStyle = hv; ctx.fillRect(0, 0, W, H);
 
-  /* ── Hero image — top 50 % ── */
-  drawUImg(ctx, uImg, S.op, S.sc, W, H, 0.50);
+  const av = ctx.createRadialGradient(W, H, 0, W, H, W * 0.85);
+  av.addColorStop(0, ac.p + "77"); av.addColorStop(1, "transparent");
+  ctx.fillStyle = av; ctx.fillRect(0, 0, W, H);
 
-  darkOverlay(ctx, W, H, [
-    [0,    0.02],
-    [0.24, 0.05],
-    [0.38, 0.30],
-    [0.50, 0.70],
-    [0.66, 0.90],
-    [1,    0.97],
+  diagTexture(ctx, W, H, 0.022);
+
+  /* ── 2. Hero image — top heroH ── */
+  const heroH = P(310, H);
+  _drawHero(ctx, uImg, S.op, S.sc, W, heroH);
+
+  /* ── 3. Gradient overlay ── */
+  const heroFrac = heroH / H;
+  overlay(ctx, W, H, [
+    [0,              0.10],
+    [heroFrac * 0.4, 0.18],
+    [heroFrac * 0.8, 0.74],
+    [heroFrac,       0.90],
+    [1,              0.97],
   ]);
 
-  /* ── TOP BAR ── */
+  /* ── 4. TOP BAR ── */
   ft(ctx, S.round || "", 18, 24, 10.5, "rgba(255,255,255,.60)", "600", "left");
-  roundRect(ctx, cx - 90, 11, 180, 27, 13, "rgba(255,255,255,.07)", "rgba(255,255,255,.18)");
-  ft(ctx, "النتيجة النهائية", cx, 24.5, 11.5, "#fde047", "700");
+  roundRect(ctx, cx - 90, 10, 180, 27, 13, "rgba(255,255,255,.07)", "rgba(255,255,255,.18)");
+  ft(ctx, "النتيجة النهائية", cx, 23.5, 11.5, "#fde047", "700");
   ft(ctx, S.date || "", W - 18, 24, 10.5, "rgba(255,255,255,.50)", "400", "right");
 
-  /* ── STATUS BADGE ── */
-  const statusY   = Math.round(H * (isPortrait ? 0.456 : 0.375));
-  roundRect(ctx, cx - 80, statusY - 14, 160, 28, 14, "#facc15");
-  ft(ctx, S.status || "FULL TIME", cx, statusY, 12, "#000", "900");
+  /* ── 5. STATUS BADGE — sits at top of match zone ── */
+  const statusY = P(310, H);   // export: 620
+  const badgeW  = P(160, H);
+  const badgeH  = P(28, H);
+  roundRect(ctx, cx - badgeW / 2, statusY - badgeH / 2, badgeW, badgeH, P(14, H), "#facc15");
+  ft(ctx, S.status || "FULL TIME", cx, statusY, P(12, H), "#000", "900");
 
-  /* ── SCORE + LOGOS ROW ── */
-  const scoreRowY = statusY + 48;
-  const logoR     = Math.round(W * 0.086);   // ~46 px
-  const homeX     = Math.round(W * 0.18);
-  const awayX     = Math.round(W * 0.82);
+  /* ── 6. SCORE + LOGOS ROW ── */
+  const scoreRowY = P(380, H);   // export: 760
+  const logoR     = P(43,  H);   // export: 85px radius
+  const homeX     = Math.round(W * 0.231);  // 125  (export: 250)
+  const awayX     = Math.round(W * 0.769);  // 415  (export: 830)
 
   logoCircle(ctx, homeX, scoreRowY, logoR, hc);
   logoCircle(ctx, awayX, scoreRowY, logoR, ac);
 
-  /* Large score digits flanked by logos */
+  /* Score digits — large, centered */
   const [hs, as]  = parseScore(S.score);
-  const scoreSize = Math.round(W * 0.148);   // ~80 px
-  ft(ctx, hs, cx - 52, scoreRowY + 6, scoreSize, "#fff", "900");
-  ft(ctx, "–", cx,     scoreRowY - 2, Math.round(scoreSize * 0.38), "rgba(255,255,255,.22)", "300");
-  ft(ctx, as, cx + 52, scoreRowY + 6, scoreSize, "#fff", "900");
+  const scoreFont = P(55, H);     // export: 110 minimum
+  const scoreOffX = P(50, H);     // horizontal offset from center
+  ft(ctx, hs, cx - scoreOffX, scoreRowY + P(5, H), scoreFont, "#fff",                   "900");
+  ft(ctx, "–", cx,             scoreRowY - P(4, H), P(22, H),  "rgba(255,255,255,.25)", "300");
+  ft(ctx, as, cx + scoreOffX, scoreRowY + P(5, H), scoreFont, "#fff",                   "900");
 
-  /* ── TEAM NAMES below logos ── */
-  const nameY = scoreRowY + logoR + 18;
-  ft(ctx, hc.n, homeX, nameY,      14, "#fff",                  "900", "center", 146);
-  ft(ctx, hc.e, homeX, nameY + 19,  8.5, "rgba(255,255,255,.32)", "400");
-  ft(ctx, ac.n, awayX, nameY,      14, "#fff",                  "900", "center", 146);
-  ft(ctx, ac.e, awayX, nameY + 19,  8.5, "rgba(255,255,255,.32)", "400");
+  /* ── 7. ARABIC TEAM NAMES — under logos ── */
+  const arNameY = P(455, H);      // export: 910
+  const arFont  = P(22, H);       // export: 44
+  const arMaxW  = Math.round(W * 0.28);
+  ft(ctx, hc.n, homeX, arNameY, arFont, "#fff",                  "900", "center", arMaxW);
+  ft(ctx, ac.n, awayX, arNameY, arFont, "#fff",                  "900", "center", arMaxW);
 
-  /* ── SCORERS BOX ── */
-  const scorersY = nameY + (isPortrait ? 42 : 32);
-  const scorersH = Math.round(H * (isPortrait ? 0.117 : 0.110));
-  roundRect(ctx, 32, scorersY, W - 64, scorersH, 16,
-    "rgba(255,255,255,.055)", "rgba(255,255,255,.14)");
+  /* ── 8. ENGLISH TEAM NAMES ── */
+  const enNameY = P(474, H);      // export: 948
+  const enFont  = P(10, H);       // export: 20
+  ft(ctx, hc.e, homeX, enNameY, enFont, "rgba(255,255,255,.36)", "400");
+  ft(ctx, ac.e, awayX, enNameY, enFont, "rgba(255,255,255,.36)", "400");
 
-  ft(ctx, "⚽  الهدافون", cx, scorersY + 16, 10.5, "rgba(255,255,255,.36)", "400");
+  /* ── 9. SCORERS BOX  y=1000–1090 export → y=500–545 internal ── */
+  const scorersY = P(500, H);
+  const scorersH = P(45, H);
+  roundRect(ctx, P(28, H), scorersY, W - P(56, H), scorersH, P(12, H),
+    "rgba(255,255,255,.06)", "rgba(255,255,255,.16)");
 
+  ft(ctx, "⚽  الهدافون", cx, scorersY + P(12, H), P(10, H), "rgba(255,255,255,.36)", "400");
+  line(ctx, P(52, H), scorersY + P(24, H), W - P(52, H), scorersY + P(24, H), "rgba(255,255,255,.07)");
+  ft(ctx, S.scorers || "—", cx, scorersY + P(36, H), P(12, H), "#fff", "700", "center", Math.round(W * 0.85));
+
+  /* ── 10. VENUE + FLANKING LINES ── */
+  const venueY = P(554, H);       // export: 1108
+  ft(ctx, S.stadium, cx, venueY, P(10, H), "rgba(255,255,255,.42)", "400", "center", Math.round(W * 0.82));
+
+  const lineY = venueY + P(18, H);
   ctx.save();
-  ctx.strokeStyle = "rgba(255,255,255,.07)";
-  ctx.lineWidth   = 0.8;
-  ctx.beginPath();
-  ctx.moveTo(52, scorersY + 30);
-  ctx.lineTo(W - 52, scorersY + 30);
-  ctx.stroke();
-  ctx.restore();
-
-  ft(ctx, S.scorers || "—", cx, scorersY + 48, 12, "#fff", "700", "center", 374);
-
-  /* ── VENUE + ACCENT LINES ── */
-  const venueY = scorersY + scorersH + 18;
-  ft(ctx, S.stadium, cx, venueY, 11, "rgba(255,255,255,.40)", "400", "center", 366);
-
-  const lineY = venueY + 22;
-  ctx.save();
-  ctx.lineWidth   = 2.5;
-  ctx.globalAlpha = 0.5;
+  ctx.lineWidth = 2; ctx.globalAlpha = 0.48;
   ctx.strokeStyle = hc.s;
-  ctx.beginPath(); ctx.moveTo(28, lineY); ctx.lineTo(cx - 22, lineY); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(24, lineY); ctx.lineTo(cx - 20, lineY); ctx.stroke();
   ctx.strokeStyle = ac.s;
-  ctx.beginPath(); ctx.moveTo(cx + 22, lineY); ctx.lineTo(W - 28, lineY); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx + 20, lineY); ctx.lineTo(W - 24, lineY); ctx.stroke();
   ctx.restore();
 
+  /* ── 11. FOOTER ── */
   drawFooter(ctx, W, H, hc, ac);
 }
 
-/* ═══════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════════════
    MAN OF THE MATCH
-═══════════════════════════════════════════════════════════════ */
+   Player image fills top 65 % (larger hero for portrait shots).
+   Info card sits in lower match zone.
+═══════════════════════════════════════════════════════════════════════ */
 export function drawMOTM(ctx, S, hc, ac, uImg, W = 540, H = 675) {
-  const cx         = W / 2;
-  const isPortrait = H > W;
+  const cx = W / 2;
 
-  /* ── Background ── */
+  /* ── 1. Base background ── */
   const bg = ctx.createLinearGradient(0, 0, 0, H);
   bg.addColorStop(0,   hc.p);
-  bg.addColorStop(0.5, "#05050f");
+  bg.addColorStop(0.5, "#04040e");
   bg.addColorStop(1,   "#020208");
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, W, H);
 
   hexGrid(ctx, hc.s, W, H);
 
-  /* ── Player image — upper 62 % ── */
-  drawUImg(ctx, uImg, S.op, S.sc, W, H, 0.62);
+  /* ── 2. Player image — taller hero for portrait shots ── */
+  const heroH = P(360, H);        // export: 720 (65 % of 675*2=1350)
+  _drawHero(ctx, uImg, S.op, S.sc, W, heroH);
 
-  darkOverlay(ctx, W, H, [
-    [0,    0.00],
-    [0.25, 0.05],
-    [0.44, 0.52],
-    [0.62, 0.86],
-    [1,    0.97],
+  /* ── 3. Gradient overlay ── */
+  const hf = heroH / H;
+  overlay(ctx, W, H, [
+    [0,        0.00],
+    [hf * 0.3, 0.05],
+    [hf * 0.7, 0.54],
+    [hf,       0.88],
+    [1,        0.97],
   ]);
 
-  /* ── HEADER ── */
+  /* ── 4. HEADER ── */
   ctx.save();
-  ctx.strokeStyle = hc.s;
-  ctx.lineWidth   = 3;
-  ctx.globalAlpha = 0.72;
-  ctx.beginPath(); ctx.moveTo(56, 46); ctx.lineTo(W - 56, 46); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(56, 76); ctx.lineTo(W - 56, 76); ctx.stroke();
+  ctx.strokeStyle = hc.s; ctx.lineWidth = 2.5; ctx.globalAlpha = 0.7;
+  ctx.beginPath(); ctx.moveTo(52, 46); ctx.lineTo(W - 52, 46); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(52, 76); ctx.lineTo(W - 52, 76); ctx.stroke();
   ctx.restore();
   ft(ctx, "رجل المباراة",        cx, 61, 19, hc.s, "900");
-  ft(ctx, "PLAYER OF THE MATCH", cx, 88,  8.5, "rgba(255,255,255,.24)", "400");
+  ft(ctx, "PLAYER OF THE MATCH", cx, 88,  8.5, "rgba(255,255,255,.22)", "400");
   ft(ctx, S.date || "", W - 16, 24, 10, "rgba(255,255,255,.45)", "400", "right");
 
-  /* ── MAIN CARD ── */
-  const cardY = Math.round(H * (isPortrait ? 0.600 : 0.570));
-  const cardH = Math.round(H * (isPortrait ? 0.293 : 0.308));
-  roundRect(ctx, 24, cardY, W - 48, cardH, 22,
-    "rgba(4,4,16,.90)", "rgba(255,255,255,.13)");
+  /* ── 5. MAIN INFO CARD ── */
+  const cardY = P(370, H);        // export: 740
+  const cardH = P(175, H);        // export: 350
+  roundRect(ctx, P(22, H), cardY, W - P(44, H), cardH, P(18, H),
+    "rgba(3,3,16,.92)", "rgba(255,255,255,.14)");
 
-  /* Score block (left side of card) */
+  /* Score block — left side of card */
   const [hs, as] = parseScore(S.score);
-  ft(ctx, `${hs}–${as}`,   80, cardY + 52, 50, "#facc15", "900", "center");
-  ft(ctx, "النتيجة",       80, cardY + 88,  9, "rgba(255,255,255,.30)", "400", "center");
+  ft(ctx, `${hs} – ${as}`,  P(80, H), cardY + P(46, H), P(44, H), "#facc15", "900", "center");
+  ft(ctx, "النتيجة",         P(80, H), cardY + P(78, H),  P(9, H), "rgba(255,255,255,.30)", "400", "center");
 
   /* Vertical divider */
-  ctx.save();
-  ctx.strokeStyle = "rgba(255,255,255,.10)";
-  ctx.lineWidth   = 0.8;
-  ctx.beginPath(); ctx.moveTo(128, cardY + 22); ctx.lineTo(128, cardY + 112); ctx.stroke();
-  ctx.restore();
+  line(ctx, P(126, H), cardY + P(18, H), P(126, H), cardY + P(106, H), "rgba(255,255,255,.10)");
 
-  /* Player name (right side of card) */
-  ft(ctx, "اللاعب",                  W - 44, cardY + 30,  9, "rgba(255,255,255,.35)", "400", "right");
-  ft(ctx, S.motm || "اسم اللاعب",   W - 44, cardY + 62, 27, "#fff", "900", "right", 265);
+  /* Player name — right side of card */
+  ft(ctx, "اللاعب",                 W - P(38, H), cardY + P(26, H),  P(9, H), "rgba(255,255,255,.35)", "400", "right");
+  ft(ctx, S.motm || "اسم اللاعب",  W - P(38, H), cardY + P(60, H), P(25, H), "#fff",                  "900", "right", P(266, H));
 
-  /* Club + round row */
-  circle(ctx, 48, cardY + 132, 13, hc.p, hc.s, 1.5);
-  ft(ctx, hc.b, 48, cardY + 132, 11, "#fff", "400");
-  ft(ctx, hc.n, 68, cardY + 132, 11.5, "rgba(255,255,255,.55)", "600", "left");
-  ft(ctx, S.round, W - 44, cardY + 132, 11, "rgba(255,255,255,.38)", "400", "right");
+  /* Club + round info row */
+  circle(ctx, P(48, H), cardY + P(122, H), P(12, H), hc.p, hc.s, 1.5);
+  ft(ctx, hc.b, P(48, H), cardY + P(122, H), P(10, H), "#fff", "400");
+  ft(ctx, hc.n, P(66, H), cardY + P(122, H), P(11, H), "rgba(255,255,255,.55)", "600", "left");
+  ft(ctx, S.round, W - P(36, H), cardY + P(122, H), P(10, H), "rgba(255,255,255,.38)", "400", "right");
 
-  /* Divider + stadium */
-  const divY = cardY + cardH - 34;
-  ctx.save();
-  ctx.strokeStyle = "rgba(255,255,255,.07)";
-  ctx.lineWidth   = 0.8;
-  ctx.beginPath(); ctx.moveTo(44, divY); ctx.lineTo(W - 44, divY); ctx.stroke();
-  ctx.restore();
-  ft(ctx, S.stadium, cx, cardY + cardH - 17, 10.5, "rgba(255,255,255,.32)", "400", "center", 380);
+  /* Divider + stadium at bottom of card */
+  line(ctx, P(40, H), cardY + cardH - P(32, H), W - P(40, H), cardY + cardH - P(32, H), "rgba(255,255,255,.07)");
+  ft(ctx, S.stadium, cx, cardY + cardH - P(16, H), P(10, H), "rgba(255,255,255,.32)", "400", "center", Math.round(W * 0.85));
 
+  /* ── 6. FOOTER ── */
   drawFooter(ctx, W, H, hc, ac);
 }
