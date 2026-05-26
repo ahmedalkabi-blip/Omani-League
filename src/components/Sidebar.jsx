@@ -202,8 +202,8 @@ export default function Sidebar({ state, onUpdate, onImageLoad, onImageDelete, o
                 onClick={() => onUpdate("canvasSize", k)} />
             ))}
           </div>
-          <p style={{ fontSize: 10, color: "rgba(255,255,255,.25)", textAlign: "right", margin: 0 }}>
-            {state.canvasSize === "portrait" ? "1080 × 1350 بكسل" : "1080 × 1080 بكسل"}
+          <p dir="ltr" style={{ fontSize: 10, color: "rgba(255,255,255,.25)", textAlign: "right", margin: 0 }}>
+            {(CANVAS_SIZES[state.canvasSize] || CANVAS_SIZES.portrait).hint} بكسل
           </p>
         </Section>
 
@@ -327,8 +327,8 @@ export default function Sidebar({ state, onUpdate, onImageLoad, onImageDelete, o
 
         {/* ── 9. Export ── */}
         <Section title="تصدير" open={open.export} onToggle={() => tog("export")}>
-          <p style={{ fontSize: 10, color: "rgba(255,255,255,.25)", textAlign: "right", margin: 0 }}>
-            {state.canvasSize === "portrait" ? "مقاس الإخراج: 1080 × 1350 بكسل" : "مقاس الإخراج: 1080 × 1080 بكسل"}
+          <p dir="ltr" style={{ fontSize: 10, color: "rgba(255,255,255,.25)", textAlign: "right", margin: 0 }}>
+            مقاس الإخراج: {(CANVAS_SIZES[state.canvasSize] || CANVAS_SIZES.portrait).hint} بكسل
           </p>
           <button
             onClick={onDownload}

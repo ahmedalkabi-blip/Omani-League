@@ -1,12 +1,7 @@
 import { useState, useRef, useCallback } from "react";
 import Sidebar from "./components/Sidebar.jsx";
 import CanvasPreview from "./components/CanvasPreview.jsx";
-import { CLUBS, DEFAULT_STATE, TEMPLATE_LABELS } from "./data/clubs.js";
-
-const EXPORT_DIMS = {
-  portrait: [1080, 1350],
-  square:   [1080, 1080],
-};
+import { CLUBS, DEFAULT_STATE, TEMPLATE_LABELS, CANVAS_SIZES } from "./data/clubs.js";
 
 export default function App() {
   const [state, setState]         = useState(DEFAULT_STATE);
@@ -30,17 +25,17 @@ export default function App() {
     if (!src) return;
     setDownloading(true);
 
-    const [ew, eh] = EXPORT_DIMS[state.canvasSize] || EXPORT_DIMS.portrait;
-    const big = document.createElement("canvas");
-    big.width  = ew;
-    big.height = eh;
-    const bx = big.getContext("2d");
+    const size = CANVAS_SIZES[state.canvasSize] || CANVAS_SIZES.portrait;
+    const big  = document.createElement("canvas");
+    big.width  = size.exportW;   // 1080 (always width)
+    big.height = size.exportH;   // 1350 / 1080 / 1920
+    const bx   = big.getContext("2d");
     bx.scale(2, 2);
     bx.drawImage(src, 0, 0);
 
     big.toBlob(blob => {
-      const a = document.createElement("a");
-      a.href     = URL.createObjectURL(blob);
+      const a   = document.createElement("a");
+      a.href    = URL.createObjectURL(blob);
       a.download = `omani-league-${state.tpl}-${Date.now()}.png`;
       a.click();
       URL.revokeObjectURL(a.href);
@@ -48,15 +43,15 @@ export default function App() {
     }, "image/png", 1);
   }, [state.canvasSize, state.tpl]);
 
-  const hc      = CLUBS[state.hk];
-  const ac      = CLUBS[state.ak];
-  const tplHint = TEMPLATE_LABELS[state.tpl] || "";
-  const sizeHint = state.canvasSize === "portrait" ? "1080 × 1350" : "1080 × 1080";
+  const hc       = CLUBS[state.hk];
+  const ac       = CLUBS[state.ak];
+  const tplHint  = TEMPLATE_LABELS[state.tpl] || "";
+  // Always show "width × height" — wrap in dir="ltr" to prevent RTL bidi reversal
+  const sizeHint = (CANVAS_SIZES[state.canvasSize] || CANVAS_SIZES.portrait).hint;
 
   return (
     <div style={{ display: "flex", height: "100vh", width: "100%", overflow: "hidden" }}>
 
-      {/* Sidebar */}
       <Sidebar
         state={state}
         onUpdate={onUpdate}
@@ -66,7 +61,6 @@ export default function App() {
         downloading={downloading}
       />
 
-      {/* Main area */}
       <main style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", background: "#0c0c18" }}>
 
         {/* Top bar */}
@@ -75,9 +69,11 @@ export default function App() {
           padding: "10px 20px", borderBottom: "1px solid rgba(255,255,255,.07)",
           flexShrink: 0, background: "#0e0e1c",
         }}>
-          <span style={{ fontSize: 10, color: "rgba(255,255,255,.2)", letterSpacing: ".12em" }}>
-            {tplHint} · {sizeHint}
+          {/* dir="ltr" prevents Arabic RTL from reversing "1080 × 1350" to "1350 × 1080" */}
+          <span dir="ltr" style={{ fontSize: 10, color: "rgba(255,255,255,.3)", letterSpacing: ".1em" }}>
+            {sizeHint}
           </span>
+          <span style={{ fontSize: 10, color: "rgba(255,255,255,.2)" }}>{tplHint}</span>
           <button
             onClick={download}
             disabled={downloading}
@@ -93,10 +89,10 @@ export default function App() {
           </button>
         </div>
 
-        {/* Canvas preview */}
+        {/* Canvas preview — fills remaining vertical space */}
         <CanvasPreview state={state} canvasRef={canvasRef} />
 
-        {/* Bottom chips bar */}
+        {/* Bottom matchup chips */}
         <div style={{
           display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
           padding: "10px 20px", borderTop: "1px solid rgba(255,255,255,.06)",

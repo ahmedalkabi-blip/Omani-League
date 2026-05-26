@@ -15,9 +15,11 @@ export const TEMPLATE_LABELS = {
   motm:       "رجل المباراة",
 };
 
+// w × h at internal 0.5× resolution; export at 2× = full pixel size
 export const CANVAS_SIZES = {
-  portrait: { w: 540, h: 675, label: "بورتريت 4:5",  exportW: 1080, exportH: 1350 },
-  square:   { w: 540, h: 540, label: "مربع 1:1",     exportW: 1080, exportH: 1080 },
+  portrait: { w: 540, h: 675, label: "بورتريت",  exportW: 1080, exportH: 1350, hint: "1080 × 1350" },
+  square:   { w: 540, h: 540, label: "مربع",     exportW: 1080, exportH: 1080, hint: "1080 × 1080" },
+  story:    { w: 540, h: 960, label: "ستوري",    exportW: 1080, exportH: 1920, hint: "1080 × 1920" },
 };
 
 export const DEFAULT_STATE = {
