@@ -139,14 +139,16 @@ function createEngine(ctx, W, H) {
       }
       ctx.drawImage(bgImg,dx,dy,dw,dh);
       ctx.restore();
-      const fade=ctx.createLinearGradient(0,0,0,H);
-      const ov=S.bgOverlay;
-      fade.addColorStop(0,   `rgba(0,0,0,${ov*0.25})`);
-      fade.addColorStop(0.38,`rgba(0,0,0,${ov*0.40})`);
-      fade.addColorStop(0.60,`rgba(0,0,0,${ov*0.75})`);
-      fade.addColorStop(0.80,`rgba(0,0,0,${ov*0.92})`);
-      fade.addColorStop(1,   "rgba(0,0,0,.97)");
-      ctx.fillStyle=fade; ctx.fillRect(0,0,W,H);
+      if (S.bgGradient !== "none") {
+        const fade=ctx.createLinearGradient(0,0,0,H);
+        const ov=S.bgOverlay;
+        fade.addColorStop(0,   `rgba(0,0,0,${ov*0.25})`);
+        fade.addColorStop(0.38,`rgba(0,0,0,${ov*0.40})`);
+        fade.addColorStop(0.60,`rgba(0,0,0,${ov*0.75})`);
+        fade.addColorStop(0.80,`rgba(0,0,0,${ov*0.92})`);
+        fade.addColorStop(1,   "rgba(0,0,0,.97)");
+        ctx.fillStyle=fade; ctx.fillRect(0,0,W,H);
+      }
     } else {
       const g=ctx.createLinearGradient(0,0,0,H);
       g.addColorStop(0,    darken(hc,0.72));
