@@ -352,39 +352,94 @@ function renderMatchday(ctx, S, hImg, aImg, bgImg) {
 }
 
 function renderFulltime(ctx, S, hImg, aImg, bgImg) {
-  const sz=CANVAS_SIZES[S.canvasSize], W=sz.w, H=sz.h;
-  const e=createEngine(ctx,W,H);
-  e.drawBackground(S,bgImg);
-  drawTopStrip(e,S,W);
+  const sz = CANVAS_SIZES[S.canvasSize], W = sz.w, H = sz.h;
+  const e  = createEngine(ctx, W, H);
 
-  const { LR, hX, aX, botY } = logoRow(W, H);
-  drawBottomOverlay(ctx, S, W, H, botY);
+  e.drawBackground(S, bgImg);
+  drawTopStrip(e, S, W);
 
-  /* FULL TIME badge + date subtitle */
-  const badgeY = yAt(H, 0.578);
-  e.rrect(W/2-130, badgeY-18, 260, 36, 4, S.accent, null);
-  e.txt("FULL TIME", W/2, badgeY, 20, "#000","900");
-  e.txt(S.date, W/2, badgeY+28, 15, "rgba(255,255,255,.38)","500");
+  /* ── GLASS RESULT PANEL ──────────────────────────────────────────────
+     Single dark gradient panel covering the lower ~46 % of the canvas.
+     The image stays visible and strong above it.                       */
+  const PY = yAt(H, 0.54);                    // panel start (54 % down)
+  const pg = ctx.createLinearGradient(0, PY, 0, H);
+  pg.addColorStop(0,    "rgba(0,0,0,0)");
+  pg.addColorStop(0.06, "rgba(0,0,0,0.48)");
+  pg.addColorStop(0.22, "rgba(0,0,0,0.78)");
+  pg.addColorStop(1,    "rgba(0,0,0,0.96)");
+  ctx.fillStyle = pg; ctx.fillRect(0, PY, W, H - PY);
 
-  drawCompPill(e, S, W, yAt(H, 0.638));
+  /* top border — thin white line at the natural transition point */
+  const borderY = PY + R(H * 0.024);
+  e.line(0, borderY, W, borderY, "rgba(255,255,255,0.15)", 1);
 
-  const rowY = yAt(H, 0.722);
-  drawTeamBlock(e, S, "h", hX, rowY, LR, hImg, W);
-  drawTeamBlock(e, S, "a", aX, rowY, LR, aImg, W);
+  /* ── Competition / league name ── */
+  const leagueY = borderY + R(H * 0.030);
+  e.txt(S.comp, W/2, leagueY, 15, "rgba(255,255,255,0.38)", "600", "center", W * 0.55);
+
+  /* ── FULL TIME badge ── */
+  const ftY = leagueY + R(H * 0.040);
+  const ftBW = 170, ftBH = 28;
+  e.rrect(W/2 - ftBW/2, ftY - R(ftBH/2), ftBW, ftBH, 4, S.accent, null);
+  e.txt("FULL TIME", W/2, ftY, 14, "#000", "900");
+  e.txt(S.date, W/2, ftY + 22, 13, "rgba(255,255,255,0.28)", "500");
+
+  /* ── Logos + Score row ── */
+  const LR   = R(W * 0.072);
+  const hX   = R(W * 0.175);
+  const aX   = R(W * 0.825);
+  const rowY = ftY + R(H * 0.040) + LR;
+
+  const hc = getClub(S, "h"), ac = getClub(S, "a");
+  e.drawLogo(hImg, hc.emoji, hX, rowY, LR, hc.p, hc.s);
+  e.drawLogo(aImg, ac.emoji, aX, rowY, LR, ac.p, ac.s);
   drawCenterScore(e, S, W, rowY);
 
-  /* Scorers line */
-  const nameEndY = rowY + LR + 26 + (S.showAr ? 40 : 0) + (S.showEn ? 20 : 0) + 18;
-  const scorY = Math.max(nameEndY, yAt(H, 0.846));
-  e.txt(S.scorers, W/2, scorY, 20, "rgba(255,255,255,.68)","500","center",W-120);
-
-  if (S.showStats) {
-    drawCompactStats(e, S, W, scorY + 34);
-  } else {
-    const infoY = Math.max(scorY + 44, yAt(H, 0.878));
-    drawInfoRow(e, S, W, infoY);
-    e.line(60, infoY-14, W-60, infoY-14, "rgba(255,255,255,.06)", 1);
+  /* ── Team names (subtle, close under logos) ── */
+  const nY = rowY + LR + 18;
+  if (S.showAr) {
+    e.txt(hc.ar, hX, nY,     28, "rgba(0,0,0,.5)", "900", "center", W * 0.27);
+    e.txt(hc.ar, hX, nY - 1, 28, "rgba(255,255,255,.9)", "900", "center", W * 0.27);
+    e.txt(ac.ar, aX, nY,     28, "rgba(0,0,0,.5)", "900", "center", W * 0.27);
+    e.txt(ac.ar, aX, nY - 1, 28, "rgba(255,255,255,.9)", "900", "center", W * 0.27);
   }
+  if (S.showEn) {
+    const enY = nY + (S.showAr ? 34 : 0);
+    e.txt(hc.en, hX, enY, 12, "rgba(255,255,255,.28)", "600", "center", W * 0.24);
+    e.txt(ac.en, aX, enY, 12, "rgba(255,255,255,.28)", "600", "center", W * 0.24);
+  }
+  /* club-colour accent underline */
+  e.rrect(hX - 26, nY + (S.showAr ? 24 : 6), 52, 2, 1, hc.s, null);
+  e.rrect(aX - 26, nY + (S.showAr ? 24 : 6), 52, 2, 1, ac.s, null);
+
+  /* ── DIVIDER between names and scorers ── */
+  const nameEndY = nY + (S.showAr ? 36 : 10) + (S.showEn ? 20 : 0);
+  const divY     = Math.max(nameEndY + 14, yAt(H, 0.836));
+  e.line(60, divY, W - 60, divY, "rgba(255,255,255,0.10)", 1);
+
+  /* ── SCORERS — home (even lines) left, away (odd lines) right ── */
+  const scorerLines = S.scorers
+    ? S.scorers.split(/\n/).map(l => l.trim()).filter(Boolean)
+    : [];
+  const sY = divY + 30;
+  scorerLines.filter((_, i) => i % 2 === 0).forEach((ln, i) =>
+    e.txt("⚽ " + ln, hX, sY + i * 26, 15, "rgba(255,255,255,.60)", "600", "center", W * 0.33)
+  );
+  scorerLines.filter((_, i) => i % 2 === 1).forEach((ln, i) =>
+    e.txt("⚽ " + ln, aX, sY + i * 26, 15, "rgba(255,255,255,.60)", "600", "center", W * 0.33)
+  );
+
+  /* ── VENUE + ROUND — single clean info line near bottom ── */
+  const maxSideSc  = Math.ceil(scorerLines.length / 2);
+  const scorerEndY = maxSideSc > 0 ? sY + (maxSideSc - 1) * 26 + 20 : sY;
+  const infoY      = Math.max(scorerEndY + 18, yAt(H, 0.912));
+  const infoParts  = [S.venue && "📍 " + S.venue, S.round && "🏆 " + S.round].filter(Boolean);
+  if (infoParts.length) {
+    e.line(80, infoY - 10, W - 80, infoY - 10, "rgba(255,255,255,0.07)", 1);
+    e.txt(infoParts.join("   ·   "), W/2, infoY + 8, 15,
+          "rgba(255,255,255,.30)", "600", "center", W - 160);
+  }
+
   drawFooter(e, S, W, H, hImg, aImg);
 }
 
