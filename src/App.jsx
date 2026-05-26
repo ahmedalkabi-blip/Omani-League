@@ -255,8 +255,8 @@ const GRAD_STOPS = {
   none:   null,
 };
 function drawBottomOverlay(ctx, S, W, H, fromY) {
-  const stops = GRAD_STOPS[S.bgGradient] ?? GRAD_STOPS.strong;
-  if (!stops) return;
+  if (S.bgGradient === "none") return;
+  const stops = GRAD_STOPS[S.bgGradient] || GRAD_STOPS.strong;
   const g = ctx.createLinearGradient(0, fromY, 0, H);
   g.addColorStop(0,    `rgba(0,0,0,${stops[0]})`);
   g.addColorStop(0.18, `rgba(0,0,0,${stops[1]})`);
@@ -486,11 +486,13 @@ function renderMOTM(ctx, S, hImg, aImg, bgImg) {
   const e=createEngine(ctx,W,H);
   e.drawBackground(S,bgImg);
 
-  const deepOv=ctx.createLinearGradient(0,H*0.25,0,H);
-  deepOv.addColorStop(0,"rgba(0,0,0,0)");
-  deepOv.addColorStop(0.3,"rgba(0,0,0,.65)");
-  deepOv.addColorStop(1,"rgba(0,0,0,.97)");
-  ctx.fillStyle=deepOv; ctx.fillRect(0,0,W,H);
+  if (S.bgGradient !== "none") {
+    const deepOv=ctx.createLinearGradient(0,H*0.25,0,H);
+    deepOv.addColorStop(0,"rgba(0,0,0,0)");
+    deepOv.addColorStop(0.3,"rgba(0,0,0,.65)");
+    deepOv.addColorStop(1,"rgba(0,0,0,.97)");
+    ctx.fillStyle=deepOv; ctx.fillRect(0,0,W,H);
+  }
 
   drawTopStrip(e,S,W);
   drawCompPill(e,S,W,yAt(H,0.12));
