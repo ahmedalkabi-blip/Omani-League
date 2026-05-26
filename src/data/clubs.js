@@ -34,7 +34,7 @@ export const DEFAULT_STATE = {
   date:       "السبت، 15 مارس 2025",
   status:     "FULL TIME",
   motm:       "أحمد الكندي",
-  op:         55,
+  op:         85,
   sc:         100,
   canvasSize: "portrait",
 };
