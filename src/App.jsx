@@ -48,7 +48,7 @@ const DEFAULT = {
   showSocial:true, showSponsor:true, showAr:true, showEn:true,
   bgOverlay:0.45, bgBlur:0, bgBrightness:95, bgScale:100,
   bgPosX:50, bgPosY:30, bgFit:"cover",
-  bgImage:null, scoreSize:160,
+  bgImage:null, scoreSize:160, bgGradient:"strong",
 };
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -247,12 +247,19 @@ function drawFooter(e, S, W, H, hImg, aImg) {
 }
 
 /* ── Dark gradient overlay for the bottom panel ── */
-function drawBottomOverlay(ctx, W, H, fromY) {
+const GRAD_STOPS = {
+  strong: [0, .82, .94, .98],
+  light:  [0, .30, .52, .68],
+  none:   null,
+};
+function drawBottomOverlay(ctx, S, W, H, fromY) {
+  const stops = GRAD_STOPS[S.bgGradient] ?? GRAD_STOPS.strong;
+  if (!stops) return;
   const g = ctx.createLinearGradient(0, fromY, 0, H);
-  g.addColorStop(0,    "rgba(0,0,0,0)");
-  g.addColorStop(0.18, "rgba(0,0,0,.82)");
-  g.addColorStop(0.42, "rgba(0,0,0,.94)");
-  g.addColorStop(1,    "rgba(0,0,0,.98)");
+  g.addColorStop(0,    `rgba(0,0,0,${stops[0]})`);
+  g.addColorStop(0.18, `rgba(0,0,0,${stops[1]})`);
+  g.addColorStop(0.42, `rgba(0,0,0,${stops[2]})`);
+  g.addColorStop(1,    `rgba(0,0,0,${stops[3]})`);
   ctx.fillStyle = g; ctx.fillRect(0, fromY, W, H - fromY);
 }
 
@@ -322,7 +329,7 @@ function renderMatchday(ctx, S, hImg, aImg, bgImg) {
   drawTopStrip(e,S,W);
 
   const { LR, hX, aX, botY } = logoRow(W, H);
-  drawBottomOverlay(ctx, W, H, botY);
+  drawBottomOverlay(ctx, S, W, H, botY);
   drawCompPill(e, S, W, yAt(H, 0.578));
   drawStatusBadge(e, S, W, yAt(H, 0.628), "MATCHDAY");
 
@@ -349,7 +356,7 @@ function renderFulltime(ctx, S, hImg, aImg, bgImg) {
   drawTopStrip(e,S,W);
 
   const { LR, hX, aX, botY } = logoRow(W, H);
-  drawBottomOverlay(ctx, W, H, botY);
+  drawBottomOverlay(ctx, S, W, H, botY);
 
   /* FULL TIME badge + date subtitle */
   const badgeY = yAt(H, 0.578);
@@ -386,7 +393,7 @@ function renderHalftime(ctx, S, hImg, aImg, bgImg) {
   drawTopStrip(e,S,W);
 
   const { LR, hX, aX, botY } = logoRow(W, H);
-  drawBottomOverlay(ctx, W, H, botY);
+  drawBottomOverlay(ctx, S, W, H, botY);
   drawCompPill(e, S, W, yAt(H, 0.578));
   drawStatusBadge(e, S, W, yAt(H, 0.628), "HALF TIME");
 
@@ -413,7 +420,7 @@ function renderNextMatch(ctx, S, hImg, aImg, bgImg) {
   drawTopStrip(e,S,W);
 
   const { LR, hX, aX, botY } = logoRow(W, H);
-  drawBottomOverlay(ctx, W, H, botY);
+  drawBottomOverlay(ctx, S, W, H, botY);
   drawCompPill(e, S, W, yAt(H, 0.578));
   drawStatusBadge(e, S, W, yAt(H, 0.628), "NEXT MATCH");
 
@@ -455,7 +462,7 @@ function renderGoal(ctx, S, hImg, aImg, bgImg) {
   e.txt("⚽  GOAL!", W/2, yAt(H,0.075)+45, 50, "#000","900");
 
   const { LR, hX, aX, botY } = logoRow(W, H);
-  drawBottomOverlay(ctx, W, H, botY);
+  drawBottomOverlay(ctx, S, W, H, botY);
   drawCompPill(e, S, W, yAt(H, 0.578));
 
   const rowY = yAt(H, 0.698);
@@ -665,8 +672,48 @@ function TeamPanel({side,S,U,onLogo}) {
    BACKGROUND PANEL
 ═══════════════════════════════════════════════════════════════════════════ */
 function BgPanel({S,U,onBgLoad,onBgRemove}) {
+  const gradOpts = [
+    { value:"strong", label:"قوي",   desc:"تلاشٍ داكن من المنتصف" },
+    { value:"light",  label:"خفيف",  desc:"إظلام خفيف في الأسفل فقط" },
+    { value:"none",   label:"بدون",  desc:"بدون طبقة سوداء" },
+  ];
   return (
     <>
+      {/* Gradient intensity — always visible */}
+      <div className="mb-3">
+        <div className="text-[10px] text-white/35 text-right mb-1.5 tracking-wide">شدة التدرج</div>
+        <div className="grid grid-cols-3 gap-1.5">
+          {gradOpts.map(o=>{
+            const on = S.bgGradient === o.value;
+            return (
+              <button key={o.value} onClick={()=>U("bgGradient",o.value)}
+                className="flex flex-col items-center gap-1 py-2 px-1 rounded-md border text-center transition-all"
+                style={{
+                  background: on ? "rgba(232,200,74,.12)" : "rgba(255,255,255,.03)",
+                  borderColor: on ? "#e8c84a"             : "rgba(255,255,255,.09)",
+                }}>
+                {/* mini gradient preview */}
+                <div className="w-full h-4 rounded-sm overflow-hidden" style={{
+                  background: o.value==="strong"
+                    ? "linear-gradient(to bottom,transparent 0%,rgba(0,0,0,.9) 100%)"
+                    : o.value==="light"
+                    ? "linear-gradient(to bottom,transparent 30%,rgba(0,0,0,.55) 100%)"
+                    : "repeating-linear-gradient(45deg,rgba(255,255,255,.06) 0px,rgba(255,255,255,.06) 2px,transparent 2px,transparent 6px)",
+                }}/>
+                <span className="text-[11px] font-bold leading-none"
+                  style={{color: on ? "#e8c84a" : "rgba(255,255,255,.5)"}}>
+                  {o.label}
+                </span>
+                <span className="text-[9px] leading-tight text-center"
+                  style={{color:"rgba(255,255,255,.22)"}}>
+                  {o.desc}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {S.bgImage ? (
         <>
           <div className="relative rounded-lg overflow-hidden mb-2.5" style={{height:72}}>
