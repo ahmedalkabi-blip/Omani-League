@@ -41,7 +41,8 @@ const DEFAULT = {
   hNameAr:"السيب",  hNameEn:"AL-SEEB", hPrimary:"#1a3a6e", hSecondary:"#c8a84b",
   aNameAr:"ظفار",   aNameEn:"DHOFAR",  aPrimary:"#005c2b",  aSecondary:"#f5c800",
   hScore:"2", aScore:"1",
-  scorers:"أحمد الكندي 23' • سالم البلوشي 67'",
+  scorers:"أحمد الكندي 23'",
+  aScorers:"سالم البلوشي 67'",
   motmName:"أحمد الكندي",
   accent:"#e8c84a",
   showDate:true, showBranding:true, showStats:false,
@@ -355,90 +356,71 @@ function renderFulltime(ctx, S, hImg, aImg, bgImg) {
   const sz = CANVAS_SIZES[S.canvasSize], W = sz.w, H = sz.h;
   const e  = createEngine(ctx, W, H);
 
+  /* Background only — no extra overlay added here; user controls darkness */
   e.drawBackground(S, bgImg);
   drawTopStrip(e, S, W);
 
-  /* ── GLASS RESULT PANEL ──────────────────────────────────────────────
-     Single dark gradient panel covering the lower ~46 % of the canvas.
-     The image stays visible and strong above it.                       */
-  const PY = yAt(H, 0.54);                    // panel start (54 % down)
-  const pg = ctx.createLinearGradient(0, PY, 0, H);
-  pg.addColorStop(0,    "rgba(0,0,0,0)");
-  pg.addColorStop(0.06, "rgba(0,0,0,0.48)");
-  pg.addColorStop(0.22, "rgba(0,0,0,0.78)");
-  pg.addColorStop(1,    "rgba(0,0,0,0.96)");
-  ctx.fillStyle = pg; ctx.fillRect(0, PY, W, H - PY);
-
-  /* top border — thin white line at the natural transition point */
-  const borderY = PY + R(H * 0.024);
-  e.line(0, borderY, W, borderY, "rgba(255,255,255,0.15)", 1);
-
-  /* ── Competition / league name ── */
-  const leagueY = borderY + R(H * 0.030);
-  e.txt(S.comp, W/2, leagueY, 15, "rgba(255,255,255,0.38)", "600", "center", W * 0.55);
+  /* ── League / comp name ── */
+  const leagueY = yAt(H, 0.575);
+  e.txt(S.comp, W/2, leagueY, 15, "rgba(255,255,255,0.40)", "600", "center", W * 0.55);
 
   /* ── FULL TIME badge ── */
   const ftY = leagueY + R(H * 0.040);
-  const ftBW = 170, ftBH = 28;
-  e.rrect(W/2 - ftBW/2, ftY - R(ftBH/2), ftBW, ftBH, 4, S.accent, null);
-  e.txt("FULL TIME", W/2, ftY, 14, "#000", "900");
-  e.txt(S.date, W/2, ftY + 22, 13, "rgba(255,255,255,0.28)", "500");
+  e.rrect(W/2 - 82, ftY - 13, 164, 26, 4, S.accent, null);
+  e.txt("FULL TIME", W/2, ftY, 13, "#000", "900");
+  if (S.date) e.txt(S.date, W/2, ftY + 21, 13, "rgba(255,255,255,0.28)", "500");
 
   /* ── Logos + Score row ── */
   const LR   = R(W * 0.072);
   const hX   = R(W * 0.175);
   const aX   = R(W * 0.825);
-  const rowY = ftY + R(H * 0.040) + LR;
+  const rowY = ftY + R(H * 0.043) + LR;
 
   const hc = getClub(S, "h"), ac = getClub(S, "a");
   e.drawLogo(hImg, hc.emoji, hX, rowY, LR, hc.p, hc.s);
   e.drawLogo(aImg, ac.emoji, aX, rowY, LR, ac.p, ac.s);
-  drawCenterScore(e, S, W, rowY);
 
-  /* ── Team names (subtle, close under logos) ── */
+  /* Score: large digits with a plain long dash — no accent box */
+  const ss  = parseInt(S.scoreSize) || 160;
+  const gap = R(ss * 0.68);
+  e.txtStroke(S.hScore || "0", W/2 - gap, rowY, ss, "#fff", "rgba(0,0,0,.45)", "900");
+  e.txt("—", W/2, rowY, R(ss * 0.30), "rgba(255,255,255,0.50)", "700");
+  e.txtStroke(S.aScore || "0", W/2 + gap, rowY, ss, "#fff", "rgba(0,0,0,.45)", "900");
+
+  /* ── Team names ── */
   const nY = rowY + LR + 18;
   if (S.showAr) {
-    e.txt(hc.ar, hX, nY,     28, "rgba(0,0,0,.5)", "900", "center", W * 0.27);
-    e.txt(hc.ar, hX, nY - 1, 28, "rgba(255,255,255,.9)", "900", "center", W * 0.27);
-    e.txt(ac.ar, aX, nY,     28, "rgba(0,0,0,.5)", "900", "center", W * 0.27);
-    e.txt(ac.ar, aX, nY - 1, 28, "rgba(255,255,255,.9)", "900", "center", W * 0.27);
+    e.txt(hc.ar, hX, nY,     28, "rgba(0,0,0,.45)", "900", "center", W * 0.27);
+    e.txt(hc.ar, hX, nY - 1, 28, "#fff",            "900", "center", W * 0.27);
+    e.txt(ac.ar, aX, nY,     28, "rgba(0,0,0,.45)", "900", "center", W * 0.27);
+    e.txt(ac.ar, aX, nY - 1, 28, "#fff",            "900", "center", W * 0.27);
   }
   if (S.showEn) {
     const enY = nY + (S.showAr ? 34 : 0);
     e.txt(hc.en, hX, enY, 12, "rgba(255,255,255,.28)", "600", "center", W * 0.24);
     e.txt(ac.en, aX, enY, 12, "rgba(255,255,255,.28)", "600", "center", W * 0.24);
   }
-  /* club-colour accent underline */
-  e.rrect(hX - 26, nY + (S.showAr ? 24 : 6), 52, 2, 1, hc.s, null);
-  e.rrect(aX - 26, nY + (S.showAr ? 24 : 6), 52, 2, 1, ac.s, null);
 
-  /* ── DIVIDER between names and scorers ── */
+  /* ── SCORERS — home list left, away list right ── */
+  const hLines = (S.scorers   || "").split(/\n/).map(l => l.trim()).filter(Boolean);
+  const aLines = (S.aScorers  || "").split(/\n/).map(l => l.trim()).filter(Boolean);
   const nameEndY = nY + (S.showAr ? 36 : 10) + (S.showEn ? 20 : 0);
-  const divY     = Math.max(nameEndY + 14, yAt(H, 0.836));
-  e.line(60, divY, W - 60, divY, "rgba(255,255,255,0.10)", 1);
-
-  /* ── SCORERS — home (even lines) left, away (odd lines) right ── */
-  const scorerLines = S.scorers
-    ? S.scorers.split(/\n/).map(l => l.trim()).filter(Boolean)
-    : [];
-  const sY = divY + 30;
-  scorerLines.filter((_, i) => i % 2 === 0).forEach((ln, i) =>
-    e.txt("⚽ " + ln, hX, sY + i * 26, 15, "rgba(255,255,255,.60)", "600", "center", W * 0.33)
+  const scY      = Math.max(nameEndY + 14, yAt(H, 0.836));
+  hLines.forEach((ln, i) =>
+    e.txt("⚽ " + ln, hX, scY + i * 26, 15, "rgba(255,255,255,.60)", "600", "center", W * 0.34)
   );
-  scorerLines.filter((_, i) => i % 2 === 1).forEach((ln, i) =>
-    e.txt("⚽ " + ln, aX, sY + i * 26, 15, "rgba(255,255,255,.60)", "600", "center", W * 0.33)
+  aLines.forEach((ln, i) =>
+    e.txt("⚽ " + ln, aX, scY + i * 26, 15, "rgba(255,255,255,.60)", "600", "center", W * 0.34)
   );
 
-  /* ── VENUE + ROUND — single clean info line near bottom ── */
-  const maxSideSc  = Math.ceil(scorerLines.length / 2);
-  const scorerEndY = maxSideSc > 0 ? sY + (maxSideSc - 1) * 26 + 20 : sY;
-  const infoY      = Math.max(scorerEndY + 18, yAt(H, 0.912));
-  const infoParts  = [S.venue && "📍 " + S.venue, S.round && "🏆 " + S.round].filter(Boolean);
-  if (infoParts.length) {
-    e.line(80, infoY - 10, W - 80, infoY - 10, "rgba(255,255,255,0.07)", 1);
-    e.txt(infoParts.join("   ·   "), W/2, infoY + 8, 15,
-          "rgba(255,255,255,.30)", "600", "center", W - 160);
-  }
+  /* ── Venue + Round — single dim line near bottom ── */
+  const maxSc   = Math.max(hLines.length, aLines.length);
+  const scEndY  = maxSc > 0 ? scY + (maxSc - 1) * 26 + 20 : scY;
+  const infoY   = Math.min(Math.max(scEndY + 18, yAt(H, 0.905)), H - 110);
+  const infoParts = [S.venue && "📍 " + S.venue, S.round && "🏆 " + S.round].filter(Boolean);
+  if (infoParts.length)
+    e.txt(infoParts.join("   ·   "), W/2, infoY, 15,
+          "rgba(255,255,255,.28)", "600", "center", W - 160);
 
   drawFooter(e, S, W, H, hImg, aImg);
 }
@@ -1116,7 +1098,8 @@ function Designer({ onBack }) {
                   <F label="أهداف المضيف"><Inp type="number" min="0" max="20" value={S.hScore} onChange={v=>U("hScore",v)} dir="ltr"/></F>
                   <F label="أهداف الضيف"> <Inp type="number" min="0" max="20" value={S.aScore} onChange={v=>U("aScore",v)} dir="ltr"/></F>
                 </div>
-                <F label="الهدافون"><Tx value={S.scorers} onChange={v=>U("scorers",v)}/></F>
+                <F label="هدافو المضيف"><Tx value={S.scorers}  onChange={v=>U("scorers",v)}/></F>
+                <F label="هدافو الضيف"> <Tx value={S.aScorers||""} onChange={v=>U("aScorers",v)}/></F>
                 {hasMOTM&&<F label="رجل المباراة"><Inp value={S.motmName} onChange={v=>U("motmName",v)}/></F>}
                 <SliderRow label="حجم النتيجة" value={S.scoreSize||160} onChange={v=>U("scoreSize",v)} min={80} max={220} unit="px"/>
               </div>
