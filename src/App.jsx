@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, createContext, useContext } from "react";
 
 /* ═══════════════════════════════════════════════════════════════════════════
    DATA
@@ -665,85 +665,165 @@ const RENDERERS = {
 };
 
 /* ═══════════════════════════════════════════════════════════════════════════
+   THEME TOKENS
+═══════════════════════════════════════════════════════════════════════════ */
+const DARK_T = {
+  name:"dark", appBg:"#09090f", topBarBg:"#0d0d1a", sidebarBg:"#0d0d1a",
+  stageBg:"radial-gradient(ellipse at 50% 35%,#14142a 0%,#09090f 100%)",
+  divider:"rgba(255,255,255,.07)",
+  text:"rgba(255,255,255,.88)", textMuted:"rgba(255,255,255,.42)", textFaint:"rgba(255,255,255,.18)",
+  secTitle:"rgba(255,255,255,.40)", secHover:"rgba(255,255,255,.025)",
+  inputBg:"rgba(255,255,255,.06)", inputBorder:"rgba(255,255,255,.10)",
+  inputText:"rgba(255,255,255,.85)", inputFocus:"rgba(232,200,74,.40)",
+  accent:"#e8c84a", accentFg:"#000", accentBg:"rgba(232,200,74,.12)",
+  btnBg:"rgba(255,255,255,.04)", btnBorder:"rgba(255,255,255,.09)", btnText:"rgba(255,255,255,.45)",
+  togOn:"#e8c84a", togOff:"rgba(255,255,255,.15)",
+  scrollbar:"rgba(255,255,255,.12)", selectOpt:"#131320",
+  stageLabel:"rgba(255,255,255,.16)", stagePill:"rgba(255,255,255,.05)", stagePillBorder:"rgba(255,255,255,.08)",
+};
+const LIGHT_T = {
+  name:"light", appBg:"#f0f1f5", topBarBg:"#ffffff", sidebarBg:"#ffffff",
+  stageBg:"#dde1e7",
+  divider:"rgba(0,0,0,.08)",
+  text:"#1f2937", textMuted:"#6b7280", textFaint:"#9ca3af",
+  secTitle:"#374151", secHover:"rgba(0,0,0,.025)",
+  inputBg:"#f9fafb", inputBorder:"rgba(0,0,0,.12)",
+  inputText:"#1f2937", inputFocus:"rgba(13,148,136,.40)",
+  accent:"#0d9488", accentFg:"#fff", accentBg:"rgba(13,148,136,.08)",
+  btnBg:"#f3f4f6", btnBorder:"rgba(0,0,0,.10)", btnText:"#4b5563",
+  togOn:"#0d9488", togOff:"rgba(0,0,0,.15)",
+  scrollbar:"rgba(0,0,0,.15)", selectOpt:"#ffffff",
+  stageLabel:"rgba(0,0,0,.28)", stagePill:"rgba(0,0,0,.04)", stagePillBorder:"rgba(0,0,0,.08)",
+};
+const ThemeCtx = createContext(DARK_T);
+const useTh = () => useContext(ThemeCtx);
+
+/* ═══════════════════════════════════════════════════════════════════════════
    UI ATOMS
 ═══════════════════════════════════════════════════════════════════════════ */
 function Lbl({children}) {
-  return <label className="block text-[10px] text-white/35 mb-1 text-right tracking-wide">{children}</label>;
+  const T = useTh();
+  return <label style={{display:"block",fontSize:10,color:T.textMuted,marginBottom:4,textAlign:"right",letterSpacing:".04em"}}>{children}</label>;
 }
 function Inp({value,onChange,placeholder,type="text",min,max,dir="rtl"}) {
+  const T = useTh();
   return (
     <input type={type} value={value} placeholder={placeholder} min={min} max={max} dir={dir}
       onChange={e=>onChange(e.target.value)}
-      className="w-full bg-white/[0.06] border border-white/[0.1] rounded-md px-2.5 py-1.5 text-[12px] text-white outline-none focus:border-yellow-400/40 transition-colors" />
+      style={{
+        width:"100%",background:T.inputBg,border:`1px solid ${T.inputBorder}`,borderRadius:6,
+        padding:"6px 10px",fontSize:12,color:T.inputText,outline:"none",transition:"border-color .15s",
+        fontFamily:"inherit",
+      }}
+      onFocus={e=>e.target.style.borderColor=T.inputFocus}
+      onBlur={e=>e.target.style.borderColor=T.inputBorder}
+    />
   );
 }
 function Sel({value,onChange,children}) {
+  const T = useTh();
   return (
     <select value={value} onChange={e=>onChange(e.target.value)} dir="rtl"
-      className="w-full bg-white/[0.06] border border-white/[0.1] rounded-md px-2.5 py-1.5 text-[12px] text-white outline-none focus:border-yellow-400/40 cursor-pointer appearance-none">
+      style={{
+        width:"100%",background:T.inputBg,border:`1px solid ${T.inputBorder}`,borderRadius:6,
+        padding:"6px 10px",fontSize:12,color:T.inputText,outline:"none",cursor:"pointer",
+        appearance:"none",fontFamily:"inherit",
+      }}>
       {children}
     </select>
   );
 }
 function Tx({value,onChange,rows=2}) {
+  const T = useTh();
   return (
     <textarea value={value} rows={rows} dir="rtl" onChange={e=>onChange(e.target.value)}
-      className="w-full bg-white/[0.06] border border-white/[0.1] rounded-md px-2.5 py-1.5 text-[12px] text-white outline-none focus:border-yellow-400/40 transition-colors resize-none" />
+      style={{
+        width:"100%",background:T.inputBg,border:`1px solid ${T.inputBorder}`,borderRadius:6,
+        padding:"6px 10px",fontSize:12,color:T.inputText,outline:"none",resize:"none",
+        transition:"border-color .15s",fontFamily:"inherit",
+      }}
+      onFocus={e=>e.target.style.borderColor=T.inputFocus}
+      onBlur={e=>e.target.style.borderColor=T.inputBorder}
+    />
   );
 }
 function ColPick({value,onChange,label}) {
+  const T = useTh();
   return (
     <div>
       {label&&<Lbl>{label}</Lbl>}
-      <div className="flex gap-1.5">
+      <div style={{display:"flex",gap:6}}>
         <input type="color" value={value} onChange={e=>onChange(e.target.value)}
-          className="w-8 h-7 rounded border border-white/20 cursor-pointer bg-transparent p-0.5 flex-shrink-0" />
+          style={{width:32,height:28,borderRadius:5,border:`1px solid ${T.inputBorder}`,cursor:"pointer",background:"transparent",padding:2,flexShrink:0}} />
         <input type="text" value={value} dir="ltr" onChange={e=>onChange(e.target.value)}
-          className="flex-1 bg-white/[0.06] border border-white/[0.1] rounded-md px-2 py-1 text-[11px] text-white/70 outline-none focus:border-yellow-400/40 font-mono" />
+          style={{
+            flex:1,background:T.inputBg,border:`1px solid ${T.inputBorder}`,borderRadius:6,
+            padding:"4px 8px",fontSize:11,color:T.textMuted,outline:"none",fontFamily:"monospace",
+          }} />
       </div>
     </div>
   );
 }
 function Tog({value,onChange,label}) {
+  const T = useTh();
   return (
-    <div className="flex items-center justify-between py-1">
-      <span className="text-[11px] text-white/45">{label}</span>
-      <button onClick={()=>onChange(!value)}
-        className={`relative w-9 h-5 rounded-full transition-colors flex-shrink-0 ${value?"bg-yellow-400":"bg-white/15"}`}>
-        <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all duration-200 ${value?"right-0.5":"left-0.5"}`}/>
+    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"5px 0"}}>
+      <span style={{fontSize:11,color:T.textMuted}}>{label}</span>
+      <button onClick={()=>onChange(!value)} style={{
+        position:"relative",width:36,height:20,borderRadius:999,flexShrink:0,cursor:"pointer",
+        background:value?T.togOn:T.togOff,border:"none",transition:"background .2s",
+      }}>
+        <span style={{
+          position:"absolute",top:2,width:16,height:16,borderRadius:"50%",background:"#fff",
+          boxShadow:"0 1px 3px rgba(0,0,0,.3)",transition:"all .2s",
+          [value?"right":"left"]:2,
+        }}/>
       </button>
     </div>
   );
 }
 function SliderRow({label,value,onChange,min=0,max=100,unit="",step=1}) {
+  const T = useTh();
+  const pct = ((value-min)/(max-min))*100;
   return (
-    <div className="mb-2.5">
-      <div className="flex justify-between mb-1">
-        <span className="text-[10px] text-white/35">{label}</span>
-        <span className="text-[10px] text-white/55">{value}{unit}</span>
+    <div style={{marginBottom:10}}>
+      <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+        <span style={{fontSize:10,color:T.textMuted}}>{label}</span>
+        <span style={{fontSize:10,color:T.text,fontWeight:600}}>{value}{unit}</span>
       </div>
       <input type="range" min={min} max={max} step={step} value={value}
         onChange={e=>onChange(Number(e.target.value))}
-        className="w-full h-[3px] rounded-full cursor-pointer appearance-none"
-        style={{background:`linear-gradient(90deg,#e8c84a ${((value-min)/(max-min))*100}%,rgba(255,255,255,.12) 0%)`}}
+        style={{
+          width:"100%",height:3,borderRadius:999,cursor:"pointer",appearance:"none",outline:"none",
+          background:`linear-gradient(90deg,${T.accent} ${pct}%,${T.inputBorder} 0%)`,
+        }}
       />
     </div>
   );
 }
 function F({label,children}) {
-  return <div className="mb-2">{label&&<Lbl>{label}</Lbl>}{children}</div>;
+  return <div style={{marginBottom:8}}>{label&&<Lbl>{label}</Lbl>}{children}</div>;
 }
 
-function Accordion({title,defaultOpen=false,children,accent}) {
-  const [open,setOpen]=useState(defaultOpen);
+function Accordion({title,defaultOpen=false,children,accentColor,badge}) {
+  const [open,setOpen] = useState(defaultOpen);
+  const T = useTh();
   return (
-    <div className="border-b border-white/[0.07]">
-      <button onClick={()=>setOpen(o=>!o)}
-        className="w-full flex items-center justify-between px-3.5 py-2.5 text-left hover:bg-white/[0.02] transition-colors">
-        <span className={`text-[11px] font-bold tracking-[0.12em] uppercase ${accent||"text-white/50"}`}>{title}</span>
-        <span className={`text-white/30 text-[10px] transition-transform duration-200 ${open?"rotate-180":""}`}>▼</span>
+    <div style={{borderBottom:`1px solid ${T.divider}`}}>
+      <button onClick={()=>setOpen(o=>!o)} style={{
+        width:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",
+        padding:"10px 14px",background:"transparent",border:"none",cursor:"pointer",
+        transition:"background .15s",
+      }}
+      onMouseOver={e=>e.currentTarget.style.background=T.secHover}
+      onMouseOut={e=>e.currentTarget.style.background="transparent"}>
+        <span style={{fontSize:10,fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",color:accentColor||T.secTitle}}>{title}</span>
+        <div style={{display:"flex",alignItems:"center",gap:6}}>
+          {badge && <span style={{fontSize:9,padding:"1px 6px",borderRadius:999,background:T.accentBg,color:T.accent,fontWeight:700}}>{badge}</span>}
+          <span style={{fontSize:8,color:T.textFaint,transform:open?"rotate(180deg)":"rotate(0)",transition:"transform .2s",display:"inline-block"}}>▼</span>
+        </div>
       </button>
-      {open && <div className="px-3.5 pb-3">{children}</div>}
+      {open && <div style={{padding:"4px 14px 12px"}}>{children}</div>}
     </div>
   );
 }
@@ -780,9 +860,12 @@ function ClubLogoImg({ src, emoji, alt, size = 32 }) {
    TEAM PANEL
 ═══════════════════════════════════════════════════════════════════════════ */
 function TeamPanel({side, S, U, onLogo, onClubLogo}) {
+  const T   = useTh();
   const isH = side === "h";
   const p   = side;
   const active = S[`${p}NameAr`];
+  const selAccent = isH ? "#e8c84a" : "#60a5fa";
+  const selBg     = isH ? "rgba(232,200,74,.10)" : "rgba(96,165,250,.10)";
 
   function applyClub(c) {
     U(`${p}NameAr`, c.ar); U(`${p}NameEn`, c.en);
@@ -802,30 +885,40 @@ function TeamPanel({side, S, U, onLogo, onClubLogo}) {
           ))}
         </Sel>
       </F>
-      <div className="grid grid-cols-7 gap-1 mb-2">
+      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4,marginBottom:8}}>
         {Object.entries(CLUBS).map(([k, c]) => {
           const on = active === c.ar;
           return (
             <button key={k} title={`نادي ${c.ar}`}
               onClick={() => applyClub(c)}
-              className={`rounded border transition-all flex items-center justify-center ${on ? (isH ? "border-yellow-400 bg-yellow-400/10" : "border-blue-400 bg-blue-400/10") : "border-white/[0.07] bg-white/[0.03] hover:border-white/20"}`}
-              style={{height:38, padding:2}}>
+              style={{
+                height:38,padding:2,borderRadius:6,cursor:"pointer",
+                display:"flex",alignItems:"center",justifyContent:"center",
+                border:`1.5px solid ${on?selAccent:T.btnBorder}`,
+                background:on?selBg:T.btnBg,
+                transition:"all .15s",
+              }}>
               <ClubLogoImg src={c.logo} emoji={c.e} alt={c.ar} size={32}/>
             </button>
           );
         })}
       </div>
-      <div className="grid grid-cols-2 gap-2 mb-2">
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
         <F label="الاسم عربي"><Inp value={S[`${p}NameAr`]} onChange={v=>U(`${p}NameAr`,v)}/></F>
         <F label="الاسم إنجليزي"><Inp value={S[`${p}NameEn`]} onChange={v=>U(`${p}NameEn`,v)} dir="ltr"/></F>
       </div>
-      <div className="grid grid-cols-2 gap-2 mb-2">
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
         <ColPick label="اللون الأساسي"  value={S[`${p}Primary`]}   onChange={v=>U(`${p}Primary`,v)}/>
         <ColPick label="اللون الثانوي"  value={S[`${p}Secondary`]} onChange={v=>U(`${p}Secondary`,v)}/>
       </div>
-      <label className={`flex items-center justify-center gap-2 border border-dashed rounded-md py-2 cursor-pointer text-[11px] transition-colors ${S[`${p}Logo`]?"border-yellow-400/40 text-yellow-400/60":"border-white/15 text-white/30 hover:border-white/25"}`}>
+      <label style={{
+        display:"flex",alignItems:"center",justifyContent:"center",gap:6,
+        border:`1.5px dashed ${S[`${p}Logo`]?selAccent:T.inputBorder}`,
+        borderRadius:8,padding:"8px 10px",cursor:"pointer",fontSize:11,
+        color:S[`${p}Logo`]?selAccent:T.textFaint,transition:"all .15s",
+      }}>
         {S[`${p}Logo`]?"✓ تم رفع الشعار":"⬆️ رفع شعار النادي"}
-        <input type="file" accept="image/*" className="hidden" onChange={onLogo}/>
+        <input type="file" accept="image/*" style={{display:"none"}} onChange={onLogo}/>
       </label>
     </>
   );
@@ -835,6 +928,7 @@ function TeamPanel({side, S, U, onLogo, onClubLogo}) {
    BACKGROUND PANEL
 ═══════════════════════════════════════════════════════════════════════════ */
 function BgPanel({S,U,onBgLoad,onBgRemove}) {
+  const T = useTh();
   const gradOpts = [
     { value:"strong", label:"قوي",   desc:"تلاشٍ داكن من المنتصف" },
     { value:"light",  label:"خفيف",  desc:"إظلام خفيف في الأسفل فقط" },
@@ -842,35 +936,28 @@ function BgPanel({S,U,onBgLoad,onBgRemove}) {
   ];
   return (
     <>
-      {/* Gradient intensity — always visible */}
-      <div className="mb-3">
-        <div className="text-[10px] text-white/35 text-right mb-1.5 tracking-wide">شدة التدرج</div>
-        <div className="grid grid-cols-3 gap-1.5">
+      <div style={{marginBottom:12}}>
+        <div style={{fontSize:10,color:T.textMuted,textAlign:"right",marginBottom:6,letterSpacing:".04em"}}>شدة التدرج</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6}}>
           {gradOpts.map(o=>{
             const on = S.bgGradient === o.value;
             return (
               <button key={o.value} onClick={()=>U("bgGradient",o.value)}
-                className="flex flex-col items-center gap-1 py-2 px-1 rounded-md border text-center transition-all"
                 style={{
-                  background: on ? "rgba(232,200,74,.12)" : "rgba(255,255,255,.03)",
-                  borderColor: on ? "#e8c84a"             : "rgba(255,255,255,.09)",
+                  display:"flex",flexDirection:"column",alignItems:"center",gap:4,
+                  padding:"8px 4px",borderRadius:8,border:`1.5px solid ${on?T.accent:T.btnBorder}`,
+                  background:on?T.accentBg:T.btnBg,cursor:"pointer",textAlign:"center",transition:"all .15s",
                 }}>
-                {/* mini gradient preview */}
-                <div className="w-full h-4 rounded-sm overflow-hidden" style={{
+                <div style={{
+                  width:"100%",height:14,borderRadius:4,overflow:"hidden",
                   background: o.value==="strong"
                     ? "linear-gradient(to bottom,transparent 0%,rgba(0,0,0,.9) 100%)"
                     : o.value==="light"
                     ? "linear-gradient(to bottom,transparent 30%,rgba(0,0,0,.55) 100%)"
-                    : "repeating-linear-gradient(45deg,rgba(255,255,255,.06) 0px,rgba(255,255,255,.06) 2px,transparent 2px,transparent 6px)",
+                    : "repeating-linear-gradient(45deg,rgba(128,128,128,.2) 0px,rgba(128,128,128,.2) 2px,transparent 2px,transparent 6px)",
                 }}/>
-                <span className="text-[11px] font-bold leading-none"
-                  style={{color: on ? "#e8c84a" : "rgba(255,255,255,.5)"}}>
-                  {o.label}
-                </span>
-                <span className="text-[9px] leading-tight text-center"
-                  style={{color:"rgba(255,255,255,.22)"}}>
-                  {o.desc}
-                </span>
+                <span style={{fontSize:11,fontWeight:700,color:on?T.accent:T.textMuted,lineHeight:1}}>{o.label}</span>
+                <span style={{fontSize:9,color:T.textFaint,lineHeight:1.3,textAlign:"center"}}>{o.desc}</span>
               </button>
             );
           })}
@@ -879,18 +966,18 @@ function BgPanel({S,U,onBgLoad,onBgRemove}) {
 
       {S.bgImage ? (
         <>
-          <div className="relative rounded-lg overflow-hidden mb-2.5" style={{height:72}}>
-            <img src={S.bgImage} alt="" className="w-full h-full object-cover opacity-60"/>
-            <button onClick={onBgRemove}
-              className="absolute top-1.5 right-1.5 bg-red-500/80 text-white rounded px-2 py-0.5 text-[10px] font-bold">
-              ✕ حذف
-            </button>
+          <div style={{position:"relative",borderRadius:8,overflow:"hidden",marginBottom:10,height:72}}>
+            <img src={S.bgImage} alt="" style={{width:"100%",height:"100%",objectFit:"cover",opacity:.6}}/>
+            <button onClick={onBgRemove} style={{
+              position:"absolute",top:6,right:6,background:"rgba(239,68,68,.85)",color:"#fff",
+              border:"none",borderRadius:5,padding:"2px 8px",fontSize:10,fontWeight:700,cursor:"pointer",
+            }}>✕ حذف</button>
           </div>
           <SliderRow label="الإظلام"   value={Math.round(S.bgOverlay*100)} onChange={v=>U("bgOverlay",v/100)} min={0} max={100} unit="%"/>
           <SliderRow label="السطوع"    value={S.bgBrightness} onChange={v=>U("bgBrightness",v)} min={20} max={150} unit="%"/>
           <SliderRow label="الضبابية"  value={S.bgBlur}       onChange={v=>U("bgBlur",v)}       min={0} max={20}  unit="px"/>
           <SliderRow label="التكبير"   value={S.bgScale}      onChange={v=>U("bgScale",v)}      min={50} max={200} unit="%"/>
-          <div className="grid grid-cols-2 gap-2 mb-1">
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:4}}>
             <SliderRow label="أفقي" value={S.bgPosX} onChange={v=>U("bgPosX",v)} unit="%"/>
             <SliderRow label="رأسي" value={S.bgPosY} onChange={v=>U("bgPosY",v)} unit="%"/>
           </div>
@@ -902,11 +989,15 @@ function BgPanel({S,U,onBgLoad,onBgRemove}) {
           </F>
         </>
       ) : (
-        <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-white/10 rounded-lg py-5 cursor-pointer hover:border-white/22 transition-colors">
-          <span className="text-2xl">🖼️</span>
-          <span className="text-[11px] text-white/30">رفع صورة خلفية</span>
-          <span className="text-[9px] text-white/18">PNG · JPG · WEBP</span>
-          <input type="file" accept="image/*" className="hidden" onChange={onBgLoad}/>
+        <label style={{
+          display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:6,
+          border:`2px dashed ${T.inputBorder}`,borderRadius:10,padding:"20px 10px",cursor:"pointer",
+          transition:"border-color .15s",
+        }}>
+          <span style={{fontSize:24}}>🖼️</span>
+          <span style={{fontSize:11,color:T.textMuted}}>رفع صورة خلفية</span>
+          <span style={{fontSize:9,color:T.textFaint}}>PNG · JPG · WEBP</span>
+          <input type="file" accept="image/*" style={{display:"none"}} onChange={onBgLoad}/>
         </label>
       )}
     </>
@@ -916,13 +1007,18 @@ function BgPanel({S,U,onBgLoad,onBgRemove}) {
 /* ═══════════════════════════════════════════════════════════════════════════
    DESIGNER (formerly App)
 ═══════════════════════════════════════════════════════════════════════════ */
+const POST_TYPE_ICONS = {matchday:"⚽",fulltime:"🏁",halftime:"⏱️",nextmatch:"📅",goal:"🎯",motm:"⭐"};
+
 function Designer({ onBack }) {
-  const [S,setS]        = useState({...DEFAULT});
-  const [zoom,setZoom]  = useState(0);
-  const [hImg,setHImg]  = useState(null);
-  const [aImg,setAImg]  = useState(null);
-  const [bgImg,setBgImg]= useState(null);
-  const [dl,setDl]      = useState(false);
+  const [S,setS]          = useState({...DEFAULT});
+  const [zoom,setZoom]    = useState(0);
+  const [hImg,setHImg]    = useState(null);
+  const [aImg,setAImg]    = useState(null);
+  const [bgImg,setBgImg]  = useState(null);
+  const [dl,setDl]        = useState(false);
+  const [theme,setTheme]  = useState("dark");
+  const T = theme === "dark" ? DARK_T : LIGHT_T;
+
   const canvasRef = useRef(null);
   const stageRef  = useRef(null);
 
@@ -978,8 +1074,6 @@ function Designer({ onBack }) {
 
   const removeBg=useCallback(()=>{setBgImg(null);U("bgImage",null);},[U]);
 
-  /* Auto-load a club logo by URL when a club is selected.
-     Silently does nothing if the file doesn't exist yet.  */
   const tryLoadClubLogo = useCallback((side, url) => {
     if (!url) return;
     const img = new Image();
@@ -987,7 +1081,7 @@ function Designer({ onBack }) {
       if (side === "h") { setHImg(img); U("hLogo", url); }
       else              { setAImg(img); U("aLogo", url); }
     };
-    img.onerror = () => {}; // logo file not present yet — fallback to emoji
+    img.onerror = () => {};
     img.src = url;
   }, [U]);
 
@@ -1009,145 +1103,184 @@ function Designer({ onBack }) {
   const hasScore=["fulltime","halftime","goal","motm"].includes(S.postType);
   const hasMOTM =S.postType==="motm";
 
+  const thumbAccent = T.name==="dark" ? T.accent : T.accent;
+
   return (
-    <div className="flex flex-col h-screen overflow-hidden text-white"
-      dir="rtl" style={{fontFamily:"'Cairo','Tajawal',sans-serif",background:"#09090f"}}>
+    <ThemeCtx.Provider value={T}>
+    <div dir="rtl" style={{
+      fontFamily:"'Cairo','Tajawal',sans-serif",
+      display:"flex",flexDirection:"column",height:"100vh",overflow:"hidden",
+      background:T.appBg,color:T.text,
+    }}>
 
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&family=Tajawal:wght@400;700;900&display=swap');
         *{box-sizing:border-box;margin:0;padding:0}
         html,body,#root{height:100%;overflow:hidden}
-        ::-webkit-scrollbar{width:3px}
-        ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:3px}
-        input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:#e8c84a;cursor:pointer;margin-top:-5px}
+        ::-webkit-scrollbar{width:4px}
+        ::-webkit-scrollbar-thumb{background:${T.scrollbar};border-radius:4px}
+        input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:${thumbAccent};cursor:pointer;margin-top:-5px}
         input[type=range]::-webkit-slider-runnable-track{height:3px;border-radius:9999px}
-        select option{background:#131320;color:#fff}
+        select option{background:${T.selectOpt};color:${T.inputText}}
       `}</style>
 
       {/* TOP BAR */}
-      <div className="h-11 flex-shrink-0 flex items-center justify-between px-4 gap-3"
-        style={{background:"#0d0d1a",borderBottom:"1px solid rgba(255,255,255,.07)"}}>
-        <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg flex items-center justify-center text-sm flex-shrink-0"
-            style={{background:"#e8c84a"}}>🇴🇲</div>
+      <div style={{
+        height:48,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"space-between",
+        padding:"0 16px",gap:12,background:T.topBarBg,borderBottom:`1px solid ${T.divider}`,
+      }}>
+        {/* Brand */}
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <div style={{
+            width:30,height:30,borderRadius:8,display:"flex",alignItems:"center",
+            justifyContent:"center",fontSize:14,flexShrink:0,background:T.accent,
+          }}>🇴🇲</div>
           <div>
-            <div className="text-[13px] font-black leading-none">مصمم دوري عُمانتل</div>
-            <div className="text-[8px] tracking-[.14em]" style={{color:"rgba(255,255,255,.25)"}}>OMANTEL LEAGUE POST DESIGNER</div>
+            <div style={{fontSize:13,fontWeight:900,lineHeight:1,color:T.text}}>مصمم دوري عُمانتل</div>
+            <div style={{fontSize:8,letterSpacing:".14em",color:T.textFaint}}>OMANTEL LEAGUE POST DESIGNER</div>
           </div>
         </div>
-        <div className="flex items-center gap-1 rounded-lg p-1"
-          style={{background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.08)"}}>
-          <span className="text-[9px] px-1" style={{color:"rgba(255,255,255,.28)"}}>تكبير</span>
-          {[[0.35,"35%"],[0.5,"50%"],[0.65,"65%"],[0.8,"80%"]].map(([z,lbl])=>(
-            <button key={z} onClick={()=>setZoom(z)}
-              className="px-2 py-0.5 rounded text-[10px] font-bold transition-all"
-              style={{background:Math.abs(zoom-z)<0.01?"rgba(232,200,74,.18)":"transparent",
-                      color:Math.abs(zoom-z)<0.01?"#e8c84a":"rgba(255,255,255,.35)"}}>
-              {lbl}
-            </button>
-          ))}
-          <button onClick={()=>setZoom(calcFit())}
-            className="px-2 py-0.5 rounded text-[10px] font-bold"
-            style={{color:"rgba(255,255,255,.35)"}}>ملاءمة</button>
+
+        {/* Zoom controls */}
+        <div style={{
+          display:"flex",alignItems:"center",gap:2,borderRadius:8,padding:4,
+          background:T.btnBg,border:`1px solid ${T.btnBorder}`,
+        }}>
+          <span style={{fontSize:9,padding:"0 4px",color:T.textFaint}}>تكبير</span>
+          {[[0.35,"35%"],[0.5,"50%"],[0.65,"65%"],[0.8,"80%"]].map(([z,lbl])=>{
+            const active=Math.abs(zoom-z)<0.01;
+            return (
+              <button key={z} onClick={()=>setZoom(z)} style={{
+                padding:"3px 8px",borderRadius:6,fontSize:10,fontWeight:700,cursor:"pointer",border:"none",
+                background:active?T.accentBg:"transparent",
+                color:active?T.accent:T.textMuted,transition:"all .15s",
+              }}>{lbl}</button>
+            );
+          })}
+          <button onClick={()=>setZoom(calcFit())} style={{
+            padding:"3px 8px",borderRadius:6,fontSize:10,fontWeight:700,cursor:"pointer",
+            border:"none",background:"transparent",color:T.textMuted,
+          }}>ملاءمة</button>
         </div>
-        <div className="flex items-center gap-2">
+
+        {/* Right actions */}
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          {/* Theme toggle */}
+          <button onClick={()=>setTheme(t=>t==="dark"?"light":"dark")} style={{
+            display:"flex",alignItems:"center",gap:5,padding:"5px 10px",borderRadius:8,
+            border:`1px solid ${T.divider}`,background:T.btnBg,cursor:"pointer",
+            fontSize:10,fontWeight:700,color:T.textMuted,transition:"all .15s",
+          }}>
+            {theme==="dark"?"☀️ فاتح":"🌙 داكن"}
+          </button>
+
           {onBack && (
-            <button onClick={onBack}
-              className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-[11px] font-bold transition-all"
-              style={{background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",color:"rgba(255,255,255,.55)"}}>
-              ← الاستوديو
-            </button>
+            <button onClick={onBack} style={{
+              display:"flex",alignItems:"center",gap:4,borderRadius:8,padding:"5px 12px",
+              fontSize:11,fontWeight:700,border:`1px solid ${T.divider}`,
+              background:T.btnBg,color:T.textMuted,cursor:"pointer",
+            }}>← الاستوديو</button>
           )}
-          <span className="text-[9px] rounded px-2 py-1 hidden sm:block"
-            style={{color:"rgba(255,255,255,.22)",border:"1px solid rgba(255,255,255,.08)"}}>
-            {sz.label}
-          </span>
-          <button onClick={dlPNG} disabled={dl}
-            className="flex items-center gap-1.5 font-black border-none rounded-lg px-4 py-1.5 text-[12px] disabled:opacity-50 transition-opacity"
-            style={{background:"#e8c84a",color:"#000"}}>
+
+          <span style={{
+            fontSize:9,borderRadius:6,padding:"4px 8px",
+            color:T.textFaint,border:`1px solid ${T.divider}`,
+          }}>{sz.label}</span>
+
+          <button onClick={dlPNG} disabled={dl} style={{
+            display:"flex",alignItems:"center",gap:6,fontWeight:900,border:"none",
+            borderRadius:8,padding:"6px 16px",fontSize:12,cursor:dl?"not-allowed":"pointer",
+            background:T.accent,color:T.accentFg,opacity:dl?0.5:1,transition:"opacity .15s",
+          }}>
             {dl?"⏳":"⬇️"} {dl?"جاري...":"تصدير PNG"}
           </button>
         </div>
       </div>
 
       {/* BODY */}
-      <div className="flex flex-1 overflow-hidden">
+      <div style={{display:"flex",flex:1,overflow:"hidden"}}>
 
         {/* CANVAS STAGE */}
-        <div ref={stageRef}
-          className="flex-1 flex items-center justify-center overflow-auto p-5"
-          style={{background:"radial-gradient(ellipse at 50% 35%,#14142a 0%,#09090f 100%)"}}>
-          <div className="flex flex-col items-center gap-3">
-            <div className="text-[9px] tracking-[.2em] uppercase" style={{color:"rgba(255,255,255,.16)"}}>
+        <div ref={stageRef} style={{
+          flex:1,display:"flex",alignItems:"center",justifyContent:"center",
+          overflow:"auto",padding:20,background:T.stageBg,
+        }}>
+          <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:12}}>
+            <div style={{fontSize:9,letterSpacing:".2em",textTransform:"uppercase",color:T.stageLabel}}>
               Instagram {sz.sub} · {sz.label}
             </div>
-            <div style={{width:cW,height:cH,flexShrink:0,borderRadius:12,overflow:"hidden",
-              boxShadow:"0 0 0 1px rgba(255,255,255,.08),0 32px 100px rgba(0,0,0,.9)"}}>
+            <div style={{
+              width:cW,height:cH,flexShrink:0,borderRadius:12,overflow:"hidden",
+              boxShadow:`0 0 0 1px ${T.stagePillBorder},0 32px 100px rgba(0,0,0,${T.name==="dark"?".9":".25"})`,
+            }}>
               <canvas ref={canvasRef} style={{display:"block",width:cW,height:cH}}/>
             </div>
-            <div className="flex items-center gap-2">
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
               {[
                 {ar:S.hNameAr,e:Object.values(CLUBS).find(c=>c.ar===S.hNameAr)?.e||"⚽"},
                 null,
                 {ar:S.aNameAr,e:Object.values(CLUBS).find(c=>c.ar===S.aNameAr)?.e||"🦁"},
               ].map((item,i)=>item?(
-                <div key={i} className="flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold"
-                  style={{background:"rgba(255,255,255,.05)",border:"1px solid rgba(255,255,255,.08)"}}>
-                  {item.e} {item.ar}
-                </div>
+                <div key={i} style={{
+                  display:"flex",alignItems:"center",gap:6,borderRadius:999,padding:"4px 12px",
+                  fontSize:11,fontWeight:700,background:T.stagePill,border:`1px solid ${T.stagePillBorder}`,color:T.text,
+                }}>{item.e} {item.ar}</div>
               ):(
-                <span key={i} className="text-[9px]" style={{color:"rgba(255,255,255,.16)"}}>◆</span>
+                <span key={i} style={{fontSize:9,color:T.textFaint}}>◆</span>
               ))}
             </div>
           </div>
         </div>
 
         {/* RIGHT SIDEBAR */}
-        <aside className="w-[268px] flex-shrink-0 overflow-y-auto"
-          style={{background:"#0d0d1a",borderRight:"1px solid rgba(255,255,255,.07)"}}>
+        <aside style={{
+          width:276,flexShrink:0,overflowY:"auto",
+          background:T.sidebarBg,borderRight:`1px solid ${T.divider}`,
+        }}>
 
           <Accordion title="نوع البوست" defaultOpen={true}>
-            <div className="grid grid-cols-2 gap-1.5 mt-0.5">
-              {POST_TYPES.map(pt=>(
-                <button key={pt.id}
-                  onClick={()=>{U("postType",pt.id);U("title",pt.ar);}}
-                  className="py-2 px-2 rounded border text-[11px] font-bold transition-all leading-tight text-center"
-                  style={{
-                    background:S.postType===pt.id?"#e8c84a":"rgba(255,255,255,.04)",
-                    borderColor:S.postType===pt.id?"#e8c84a":"rgba(255,255,255,.09)",
-                    color:S.postType===pt.id?"#000":"rgba(255,255,255,.45)"
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,paddingTop:4}}>
+              {POST_TYPES.map(pt=>{
+                const on = S.postType===pt.id;
+                return (
+                  <button key={pt.id} onClick={()=>{U("postType",pt.id);U("title",pt.ar);}} style={{
+                    padding:"8px 6px",borderRadius:8,border:`1.5px solid ${on?T.accent:T.btnBorder}`,
+                    background:on?T.accentBg:T.btnBg,cursor:"pointer",fontSize:11,fontWeight:700,
+                    color:on?T.accent:T.btnText,transition:"all .15s",
+                    display:"flex",flexDirection:"column",alignItems:"center",gap:3,
                   }}>
-                  {pt.ar}
-                </button>
-              ))}
+                    <span style={{fontSize:18}}>{POST_TYPE_ICONS[pt.id]||"📋"}</span>
+                    {pt.ar}
+                  </button>
+                );
+              })}
             </div>
           </Accordion>
 
           <Accordion title="حجم الكانفاس">
-            <div className="grid grid-cols-3 gap-1.5 mt-0.5">
-              {Object.entries(CANVAS_SIZES).map(([k,v])=>(
-                <button key={k}
-                  onClick={()=>{U("canvasSize",k);setTimeout(()=>setZoom(calcFit()),50);}}
-                  className="py-2 rounded border text-center transition-all"
-                  style={{
-                    background:S.canvasSize===k?"rgba(232,200,74,.12)":"rgba(255,255,255,.04)",
-                    borderColor:S.canvasSize===k?"#e8c84a":"rgba(255,255,255,.09)",
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6,paddingTop:4}}>
+              {Object.entries(CANVAS_SIZES).map(([k,v])=>{
+                const on=S.canvasSize===k;
+                return (
+                  <button key={k} onClick={()=>{U("canvasSize",k);setTimeout(()=>setZoom(calcFit()),50);}} style={{
+                    padding:"8px 4px",borderRadius:8,border:`1.5px solid ${on?T.accent:T.btnBorder}`,
+                    background:on?T.accentBg:T.btnBg,cursor:"pointer",textAlign:"center",transition:"all .15s",
                   }}>
-                  <div className="text-[10px] font-bold"
-                    style={{color:S.canvasSize===k?"#e8c84a":"rgba(255,255,255,.5)"}}>{v.sub}</div>
-                  <div className="text-[8px]" style={{color:"rgba(255,255,255,.22)"}}>{v.label}</div>
-                </button>
-              ))}
+                    <div style={{fontSize:10,fontWeight:700,color:on?T.accent:T.textMuted}}>{v.sub}</div>
+                    <div style={{fontSize:8,color:T.textFaint}}>{v.label}</div>
+                  </button>
+                );
+              })}
             </div>
           </Accordion>
 
           <Accordion title="تفاصيل المباراة" defaultOpen={true}>
-            <div className="mt-0.5 space-y-0">
+            <div style={{paddingTop:4}}>
               <F label="البطولة (عربي)"><Inp value={S.comp}    onChange={v=>U("comp",v)}/></F>
               <F label="البطولة (إنجليزي)"><Inp value={S.compEn} onChange={v=>U("compEn",v)} dir="ltr"/></F>
-              <div className="grid grid-cols-2 gap-2">
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
                 <F label="الجولة"><Inp value={S.round} onChange={v=>U("round",v)}/></F>
-                <F label="التوقيت"><Inp value={S.time}  onChange={v=>U("time",v)}  dir="ltr"/></F>
+                <F label="التوقيت"><Inp value={S.time}  onChange={v=>U("time",v)} dir="ltr"/></F>
               </div>
               <F label="الملعب"><Inp value={S.venue} onChange={v=>U("venue",v)}/></F>
               <F label="التاريخ"><Inp value={S.date}  onChange={v=>U("date",v)}/></F>
@@ -1155,27 +1288,27 @@ function Designer({ onBack }) {
             </div>
           </Accordion>
 
-          <Accordion title="الفريق المضيف" defaultOpen={true} accent="text-yellow-400/70">
-            <div className="mt-0.5">
+          <Accordion title="الفريق المضيف" defaultOpen={true} accentColor="#d4a017">
+            <div style={{paddingTop:4}}>
               <TeamPanel side="h" S={S} U={U} onLogo={e=>loadLogo("h",e)} onClubLogo={url=>tryLoadClubLogo("h",url)}/>
             </div>
           </Accordion>
 
-          <Accordion title="الفريق الضيف" defaultOpen={true} accent="text-blue-400/70">
-            <div className="mt-0.5">
+          <Accordion title="الفريق الضيف" defaultOpen={true} accentColor="#3b82f6">
+            <div style={{paddingTop:4}}>
               <TeamPanel side="a" S={S} U={U} onLogo={e=>loadLogo("a",e)} onClubLogo={url=>tryLoadClubLogo("a",url)}/>
             </div>
           </Accordion>
 
           {hasScore && (
-            <Accordion title="النتيجة والهدافون" defaultOpen={true} accent="text-green-400/70">
-              <div className="mt-0.5 space-y-0">
-                <div className="grid grid-cols-2 gap-2">
+            <Accordion title="النتيجة والهدافون" defaultOpen={true} accentColor="#22c55e">
+              <div style={{paddingTop:4}}>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
                   <F label="أهداف المضيف"><Inp type="number" min="0" max="20" value={S.hScore} onChange={v=>U("hScore",v)} dir="ltr"/></F>
-                  <F label="أهداف الضيف"> <Inp type="number" min="0" max="20" value={S.aScore} onChange={v=>U("aScore",v)} dir="ltr"/></F>
+                  <F label="أهداف الضيف"><Inp type="number" min="0" max="20" value={S.aScore} onChange={v=>U("aScore",v)} dir="ltr"/></F>
                 </div>
                 <F label="هدافو المضيف"><Tx value={S.scorers}  onChange={v=>U("scorers",v)}/></F>
-                <F label="هدافو الضيف"> <Tx value={S.aScorers||""} onChange={v=>U("aScorers",v)}/></F>
+                <F label="هدافو الضيف"><Tx value={S.aScorers||""} onChange={v=>U("aScorers",v)}/></F>
                 {hasMOTM&&<F label="رجل المباراة"><Inp value={S.motmName} onChange={v=>U("motmName",v)}/></F>}
                 <SliderRow label="حجم النتيجة" value={S.scoreSize||160} onChange={v=>U("scoreSize",v)} min={80} max={220} unit="px"/>
               </div>
@@ -1183,15 +1316,15 @@ function Designer({ onBack }) {
           )}
 
           <Accordion title="الخلفية">
-            <div className="mt-0.5">
+            <div style={{paddingTop:4}}>
               <BgPanel S={S} U={U} onBgLoad={loadBg} onBgRemove={removeBg}/>
             </div>
           </Accordion>
 
           <Accordion title="إعدادات التصميم">
-            <div className="mt-0.5 space-y-0">
+            <div style={{paddingTop:4}}>
               <F label="لون التمييز"><ColPick value={S.accent} onChange={v=>U("accent",v)}/></F>
-              <div className="mt-1.5 space-y-0">
+              <div style={{marginTop:8}}>
                 <Tog value={S.showAr}       onChange={v=>U("showAr",v)}       label="الأسماء العربية"/>
                 <Tog value={S.showEn}       onChange={v=>U("showEn",v)}       label="الأسماء الإنجليزية"/>
                 <Tog value={S.showDate}     onChange={v=>U("showDate",v)}     label="إظهار التاريخ"/>
@@ -1203,13 +1336,15 @@ function Designer({ onBack }) {
           </Accordion>
 
           <Accordion title="التصدير" defaultOpen={true}>
-            <div className="mt-0.5">
-              <button onClick={dlPNG} disabled={dl}
-                className="w-full font-black rounded-lg py-2.5 text-[13px] disabled:opacity-50 transition-opacity mb-1.5"
-                style={{background:"#e8c84a",color:"#000"}}>
+            <div style={{paddingTop:4}}>
+              <button onClick={dlPNG} disabled={dl} style={{
+                width:"100%",fontWeight:900,borderRadius:10,padding:"10px 0",fontSize:13,
+                border:"none",cursor:dl?"not-allowed":"pointer",marginBottom:6,
+                background:T.accent,color:T.accentFg,opacity:dl?0.5:1,transition:"opacity .15s",
+              }}>
                 {dl?"⏳ جاري...":"⬇️ تحميل PNG — "+sz.label}
               </button>
-              <p className="text-[9px] text-center leading-relaxed" style={{color:"rgba(255,255,255,.18)"}}>
+              <p style={{fontSize:9,textAlign:"center",lineHeight:1.6,color:T.textFaint}}>
                 {sz.w}×{sz.h} بكسل · جودة كاملة للنشر
               </p>
             </div>
@@ -1218,6 +1353,7 @@ function Designer({ onBack }) {
         </aside>
       </div>
     </div>
+    </ThemeCtx.Provider>
   );
 }
 
