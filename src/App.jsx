@@ -755,9 +755,9 @@ function BgPanel({S,U,onBgLoad,onBgRemove}) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   MAIN APP
+   DESIGNER (formerly App)
 ═══════════════════════════════════════════════════════════════════════════ */
-export default function App() {
+function Designer({ onBack }) {
   const [S,setS]        = useState({...DEFAULT});
   const [zoom,setZoom]  = useState(0);
   const [hImg,setHImg]  = useState(null);
@@ -879,6 +879,13 @@ export default function App() {
             style={{color:"rgba(255,255,255,.35)"}}>ملاءمة</button>
         </div>
         <div className="flex items-center gap-2">
+          {onBack && (
+            <button onClick={onBack}
+              className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-[11px] font-bold transition-all"
+              style={{background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",color:"rgba(255,255,255,.55)"}}>
+              ← الاستوديو
+            </button>
+          )}
           <span className="text-[9px] rounded px-2 py-1 hidden sm:block"
             style={{color:"rgba(255,255,255,.22)",border:"1px solid rgba(255,255,255,.08)"}}>
             {sz.label}
@@ -1039,4 +1046,168 @@ export default function App() {
       </div>
     </div>
   );
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   STUDIO HOME
+═══════════════════════════════════════════════════════════════════════════ */
+const STUDIO_TOOLS = [
+  {
+    id:"league", ar:"مصمم الدوري العُماني", en:"Oman League Designer",
+    desc:"أنشئ بوستات احترافية لمباريات كرة القدم العُمانية",
+    icon:"🇴🇲", accent:"#e8c84a", live:true,
+  },
+  {
+    id:"news", ar:"مصمم البطاقات الإخبارية", en:"News Card Studio",
+    desc:"بطاقات إخبارية بتصميم حديث",
+    icon:"📰", accent:"#6366f1", live:false,
+  },
+  {
+    id:"carousel", ar:"مصمم الكاروسيل", en:"Carousel Studio",
+    desc:"سلاسل بوستات متعددة الشرائح",
+    icon:"🎠", accent:"#10b981", live:false,
+  },
+  {
+    id:"tournament", ar:"جرافيك البطولات", en:"Tournament Graphics",
+    desc:"جداول وبراكيت البطولات",
+    icon:"🏆", accent:"#f43f5e", live:false,
+  },
+];
+
+function StudioHome({ onOpen }) {
+  return (
+    <div dir="rtl" className="min-h-screen flex flex-col"
+      style={{fontFamily:"'Cairo','Tajawal',sans-serif",background:"#07070e",color:"#fff"}}>
+
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&family=Tajawal:wght@400;700;900&display=swap');
+        *{box-sizing:border-box;margin:0;padding:0}
+        html,body,#root{min-height:100%}
+        .studio-card{transition:transform .18s,box-shadow .18s}
+        .studio-card:hover{transform:translateY(-4px)}
+        .studio-card-live:hover{box-shadow:0 0 0 1px rgba(232,200,74,.5),0 24px 60px rgba(232,200,74,.15)}
+      `}</style>
+
+      {/* header */}
+      <header className="flex items-center justify-between px-8 py-5 flex-shrink-0"
+        style={{borderBottom:"1px solid rgba(255,255,255,.06)"}}>
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center text-lg flex-shrink-0 font-black"
+            style={{background:"linear-gradient(135deg,#e8c84a,#c8a820)",boxShadow:"0 4px 18px rgba(232,200,74,.35)"}}>
+            O
+          </div>
+          <div>
+            <div className="text-[15px] font-black leading-none tracking-tight">Observer AI Studio</div>
+            <div className="text-[9px] tracking-[.14em] mt-0.5" style={{color:"rgba(255,255,255,.25)"}}>
+              DESIGN TOOLS FOR OMANI FOOTBALL
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-bold"
+          style={{background:"rgba(16,185,129,.1)",border:"1px solid rgba(16,185,129,.25)",color:"#10b981"}}>
+          <span className="w-1.5 h-1.5 rounded-full inline-block" style={{background:"#10b981",animation:"pulse 2s infinite"}}/>
+          Beta
+        </div>
+      </header>
+
+      {/* hero */}
+      <section className="px-8 pt-14 pb-10 text-center">
+        <div className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-[10px] font-bold mb-6"
+          style={{background:"rgba(232,200,74,.08)",border:"1px solid rgba(232,200,74,.18)",color:"#e8c84a"}}>
+          ✦ أدوات التصميم الرياضي
+        </div>
+        <h1 className="text-[36px] font-black leading-tight mb-3" style={{letterSpacing:"-.02em"}}>
+          صمّم محتوى رياضياً<br/>
+          <span style={{color:"#e8c84a"}}>بجودة احترافية</span>
+        </h1>
+        <p className="text-[14px] max-w-md mx-auto leading-relaxed" style={{color:"rgba(255,255,255,.45)"}}>
+          اختر الأداة المناسبة لإنشاء محتوى إنستغرام جاهز للنشر
+        </p>
+      </section>
+
+      {/* tools grid */}
+      <main className="flex-1 px-8 pb-14">
+        <div className="max-w-3xl mx-auto grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {STUDIO_TOOLS.map(t => {
+            const isLive = t.live;
+            return (
+              <div key={t.id}
+                className={`studio-card rounded-2xl p-6 cursor-pointer relative overflow-hidden ${isLive?"studio-card-live":""}`}
+                style={{
+                  background: isLive
+                    ? "linear-gradient(135deg,rgba(232,200,74,.07) 0%,rgba(232,200,74,.03) 100%)"
+                    : "rgba(255,255,255,.03)",
+                  border: isLive
+                    ? "1px solid rgba(232,200,74,.25)"
+                    : "1px solid rgba(255,255,255,.07)",
+                  opacity: isLive ? 1 : 0.55,
+                }}
+                onClick={isLive ? onOpen : undefined}>
+
+                {/* glow blob for live card */}
+                {isLive && (
+                  <div style={{position:"absolute",top:-40,right:-40,width:120,height:120,
+                    borderRadius:"50%",background:"rgba(232,200,74,.08)",filter:"blur(32px)",pointerEvents:"none"}}/>
+                )}
+
+                <div className="relative">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="w-11 h-11 rounded-xl flex items-center justify-center text-2xl flex-shrink-0"
+                      style={{background:`${t.accent}15`,border:`1px solid ${t.accent}30`}}>
+                      {t.icon}
+                    </div>
+                    {isLive ? (
+                      <span className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[9px] font-black tracking-wider"
+                        style={{background:"rgba(232,200,74,.12)",border:"1px solid rgba(232,200,74,.3)",color:"#e8c84a"}}>
+                        <span className="w-1.5 h-1.5 rounded-full" style={{background:"#e8c84a"}}/>
+                        LIVE
+                      </span>
+                    ) : (
+                      <span className="rounded-full px-2.5 py-1 text-[9px] font-bold"
+                        style={{background:"rgba(255,255,255,.05)",color:"rgba(255,255,255,.3)"}}>
+                        قريبًا
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="text-[17px] font-black mb-0.5 leading-snug"
+                    style={{color: isLive ? "#fff" : "rgba(255,255,255,.55)"}}>
+                    {t.ar}
+                  </div>
+                  <div className="text-[10px] font-bold mb-2" style={{color:isLive?t.accent:"rgba(255,255,255,.2)"}}>
+                    {t.en}
+                  </div>
+                  <div className="text-[12px] leading-relaxed" style={{color:"rgba(255,255,255,.38)"}}>
+                    {t.desc}
+                  </div>
+
+                  {isLive && (
+                    <div className="mt-5 flex items-center gap-2 text-[12px] font-black"
+                      style={{color:"#e8c84a"}}>
+                      فتح المصمم
+                      <span style={{transform:"rotate(180deg)",display:"inline-block"}}>←</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </main>
+
+      {/* footer */}
+      <footer className="text-center py-6 text-[10px]" style={{color:"rgba(255,255,255,.15)",borderTop:"1px solid rgba(255,255,255,.05)"}}>
+        Observer AI Studio · الدوري العُماني للمحترفين
+      </footer>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ROOT APP — view router
+═══════════════════════════════════════════════════════════════════════════ */
+export default function App() {
+  const [view, setView] = useState("studio");
+  if (view === "designer") return <Designer onBack={() => setView("studio")} />;
+  return <StudioHome onOpen={() => setView("designer")} />;
 }
