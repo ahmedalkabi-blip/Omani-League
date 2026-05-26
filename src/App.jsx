@@ -183,7 +183,13 @@ function createEngine(ctx, W, H) {
     if (img) {
       ctx.save();
       ctx.beginPath(); ctx.arc(cx,cy,r-1,0,Math.PI*2); ctx.clip();
-      ctx.drawImage(img,cx-r+1,cy-r+1,(r-1)*2,(r-1)*2);
+      /* contain — fit the logo inside ~78% of the circle radius with padding */
+      const inner = R((r - 1) * 0.78) * 2;          // available diameter
+      const iw = img.naturalWidth  || img.width  || 1;
+      const ih = img.naturalHeight || img.height || 1;
+      const scale = Math.min(inner / iw, inner / ih); // maintain aspect ratio
+      const sw = R(iw * scale), sh = R(ih * scale);
+      ctx.drawImage(img, R(cx - sw/2), R(cy - sh/2), sw, sh);
       ctx.restore();
     } else {
       ctx.save();
@@ -727,6 +733,34 @@ function Accordion({title,defaultOpen=false,children,accent}) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+   CLUB LOGO IMAGE — sidebar use only (canvas uses drawLogo in the engine)
+═══════════════════════════════════════════════════════════════════════════ */
+function ClubLogoImg({ src, emoji, alt, size = 32 }) {
+  const [err, setErr] = useState(false);
+  const inner = Math.round(size * 0.80);  // 20 % padding inside the box
+  if (!src || err) {
+    return (
+      <span style={{
+        display:"flex", alignItems:"center", justifyContent:"center",
+        width:size, height:size, fontSize:Math.round(size * 0.58), lineHeight:1,
+      }}>{emoji}</span>
+    );
+  }
+  return (
+    <span style={{
+      display:"flex", alignItems:"center", justifyContent:"center",
+      width:size, height:size,
+    }}>
+      <img
+        src={src} alt={alt}
+        style={{maxWidth:inner, maxHeight:inner, objectFit:"contain", display:"block"}}
+        onError={() => setErr(true)}
+      />
+    </span>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
    TEAM PANEL
 ═══════════════════════════════════════════════════════════════════════════ */
 function TeamPanel({side, S, U, onLogo, onClubLogo}) {
@@ -758,8 +792,9 @@ function TeamPanel({side, S, U, onLogo, onClubLogo}) {
           return (
             <button key={k} title={`نادي ${c.ar}`}
               onClick={() => applyClub(c)}
-              className={`rounded py-1 text-[13px] border transition-all ${on ? (isH ? "border-yellow-400 bg-yellow-400/10" : "border-blue-400 bg-blue-400/10") : "border-white/[0.07] bg-white/[0.03] hover:border-white/20"}`}>
-              {c.e}
+              className={`rounded border transition-all flex items-center justify-center ${on ? (isH ? "border-yellow-400 bg-yellow-400/10" : "border-blue-400 bg-blue-400/10") : "border-white/[0.07] bg-white/[0.03] hover:border-white/20"}`}
+              style={{height:38, padding:2}}>
+              <ClubLogoImg src={c.logo} emoji={c.e} alt={c.ar} size={32}/>
             </button>
           );
         })}
