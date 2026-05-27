@@ -712,99 +712,102 @@ function renderGoal(ctx, S, hImg, aImg, bgImg, goalPlayerImg) {
   ctx.fillStyle = fade;
   ctx.fillRect(0, R(fadeStart), W, H - R(fadeStart));
 
-  /* ── 7. BIG FOREGROUND "GOAL!" TITLE ─────────────────────────────── */
+  /* ── 7. BIG "GOAL!" TITLE — moved higher to clear space below ───── */
   const bigSz = R(W * 0.192);
   ctx.save();
   ctx.font = `900 italic ${bigSz}px 'Cairo','Tajawal',sans-serif`;
   ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.direction = "ltr";
-  // Thick colored stroke for punch
   ctx.lineWidth   = R(W * 0.013);
   ctx.strokeStyle = labelBg;
   ctx.lineJoin    = "round";
-  ctx.strokeText("GOAL!", W / 2, R(H * 0.735));
+  ctx.strokeText("GOAL!", W / 2, R(H * 0.700));
   ctx.fillStyle = titleCol;
-  ctx.fillText("GOAL!", W / 2, R(H * 0.735));
+  ctx.fillText("GOAL!", W / 2, R(H * 0.700));
   ctx.restore();
 
-  /* ── 8. SCORER PILL — compact, bottom area ───────────────────────── */
+  /* ── 8. SCORER ROW — badge | name pill | minute, centered as group ─ */
   const sNum      = S.goalShirtNumber;
   const scorerStr = S.goalScorerName || "اسم اللاعب";
-  const pillH     = R(H * 0.042);
-  const rowCY     = R(H * 0.838);
-  const pPad      = R(pillH * 0.50);
+  const rowCY     = R(H * 0.792);           // well below GOAL! text
+  const pillH     = R(H * 0.034);           // ~46 px at 1350 h — compact
+  const pPad      = R(pillH * 0.55);
 
-  // Measure scorer name for dynamic width
   ctx.save();
-  ctx.font = `700 ${R(pillH * 0.48)}px 'Cairo','Tajawal',sans-serif`;
+  ctx.font = `700 ${R(pillH * 0.50)}px 'Cairo','Tajawal',sans-serif`;
   ctx.direction = "ltr"; ctx.textAlign = "left";
   const nameTextW = ctx.measureText(scorerStr).width;
   ctx.restore();
 
-  const numBlockW = sNum ? R(pillH * 0.88) : 0;
-  const sepBlockW = sNum ? R(W * 0.003)    : 0;
-  const pillW     = R(pPad + numBlockW + sepBlockW + nameTextW + pPad);
-  const pillX     = R((W - pillW) / 2);
-  const pillY     = R(rowCY - pillH / 2);
+  const badgeR  = R(pillH * 0.44);         // shirt # circle radius
+  const minR    = R(pillH * 0.52);         // minute circle radius
+  const elemGap = R(W * 0.022);            // gap between elements
 
-  // Subtle shadow behind pill
+  const pillW  = R(pPad + nameTextW + pPad);
+  const hasBadge = !!sNum;
+  const groupW = (hasBadge ? 2 * badgeR + elemGap : 0) + pillW + elemGap + 2 * minR;
+  let   gx     = R(W / 2 - groupW / 2);
+
+  // — Shirt # badge: small dark circle, gold ring, gold number
+  if (hasBadge) {
+    const bCX = gx + badgeR;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(bCX, rowCY, badgeR + R(W * 0.004), 0, Math.PI * 2);
+    ctx.fillStyle = labelBg; ctx.fill();
+    ctx.restore();
+    e.circ(bCX, rowCY, badgeR, "rgba(0,0,0,.72)", null);
+    ctx.save();
+    ctx.font = `900 ${R(badgeR * 0.92)}px 'Cairo','Tajawal',sans-serif`;
+    ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.direction = "ltr";
+    ctx.fillStyle = labelBg;
+    ctx.fillText(String(sNum), bCX, rowCY);
+    ctx.restore();
+    gx += 2 * badgeR + elemGap;
+  }
+
+  // — Scorer name pill
+  const pillX = gx;
+  const pillY = R(rowCY - pillH / 2);
   ctx.save();
-  ctx.shadowColor = "rgba(0,0,0,.5)"; ctx.shadowBlur = R(W * 0.018); ctx.shadowOffsetY = R(H * 0.004);
+  ctx.shadowColor   = "rgba(0,0,0,.55)";
+  ctx.shadowBlur    = R(W * 0.016);
+  ctx.shadowOffsetY = R(H * 0.003);
   e.rrect(pillX, pillY, pillW, pillH, pillH / 2, labelBg, null);
   ctx.restore();
-
-  // Shirt number
-  let curX = pillX + pPad;
-  if (sNum) {
-    ctx.save();
-    ctx.font = `900 ${R(pillH * 0.52)}px 'Cairo','Tajawal',sans-serif`;
-    ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.direction = "ltr";
-    ctx.fillStyle = labelCol;
-    ctx.fillText(String(sNum), R(curX + numBlockW / 2), rowCY);
-    ctx.restore();
-    curX += numBlockW;
-    // Thin separator
-    ctx.save();
-    ctx.fillStyle = `${labelCol}50`;
-    ctx.fillRect(R(curX), R(rowCY - pillH * 0.28), R(sepBlockW), R(pillH * 0.56));
-    ctx.restore();
-    curX += sepBlockW;
-  }
-  // Scorer name
   ctx.save();
-  ctx.font = `700 ${R(pillH * 0.48)}px 'Cairo','Tajawal',sans-serif`;
-  ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.direction = "ltr";
+  ctx.font = `700 ${R(pillH * 0.50)}px 'Cairo','Tajawal',sans-serif`;
+  ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.direction = "ltr";
   ctx.fillStyle = labelCol;
-  ctx.fillText(scorerStr, R(curX), rowCY);
+  ctx.fillText(scorerStr, R(pillX + pillW / 2), rowCY, pillW - pPad);
   ctx.restore();
+  gx += pillW + elemGap;
 
-  /* ── 9. MINUTE BADGE — right of pill ────────────────────────────── */
-  const minR  = R(pillH * 0.58);
-  const minCX = R(pillX + pillW + R(pillH * 0.30) + minR);
-  // Glow halo
+  // — Minute circle: glow halo + solid circle + text
+  const minCX = gx + minR;
   ctx.save();
-  ctx.beginPath(); ctx.arc(minCX, rowCY, minR + R(W * 0.004), 0, Math.PI * 2);
-  ctx.fillStyle = `${labelBg}44`; ctx.fill(); ctx.restore();
+  ctx.beginPath();
+  ctx.arc(minCX, rowCY, minR + R(W * 0.005), 0, Math.PI * 2);
+  ctx.fillStyle = `${labelBg}44`; ctx.fill();
+  ctx.restore();
   e.circ(minCX, rowCY, minR, titleCol, null);
-  e.txt((S.goalMinute || "0") + "'", minCX, rowCY, R(pillH * 0.38), bgCol, "900");
+  e.txt((S.goalMinute || "0") + "'", minCX, rowCY, R(pillH * 0.40), bgCol, "900");
 
-  /* ── 10. CLUB LOGO — prominent, centered below scorer row ────────── */
-  const logoR  = R(W * 0.086);
+  /* ── 9. CLUB LOGO — centered, slightly smaller, clear gap above ──── */
+  const logoR  = R(W * 0.068);             // smaller: was 0.086
   const logoCX = R(W / 2);
-  const logoCY = R(H * 0.918);
-  // Gold outer ring
-  e.circ(logoCX, logoCY, logoR + R(W * 0.012), labelBg, null);
-  // Dark gap ring
-  e.circ(logoCX, logoCY, logoR + R(W * 0.005), "rgba(0,0,0,.70)", null);
+  const logoCY = R(H * 0.886);             // 20 px clear gap above logo visual top
+  e.circ(logoCX, logoCY, logoR + R(W * 0.010), labelBg, null);        // gold ring
+  e.circ(logoCX, logoCY, logoR + R(W * 0.004), "rgba(0,0,0,.70)", null); // dark gap
   e.drawLogo(clubImg, club.emoji, logoCX, logoCY, logoR, club.p, club.s);
 
-  // Score — tiny, to the right, very secondary
+  /* ── 10. MATCH SCORE — small pill to the right of logo ──────────── */
   const scoreStr = `${S.hScore || "0"} – ${S.aScore || "0"}`;
-  ctx.save();
-  ctx.font = `600 ${R(H * 0.018)}px 'Cairo','Tajawal',sans-serif`;
-  ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.direction = "ltr";
-  ctx.fillStyle = `${titleCol}50`;
-  ctx.fillText(scoreStr, R(logoCX + logoR + R(W * 0.030)), logoCY);
-  ctx.restore();
+  const spH  = R(H * 0.026);
+  const spW  = R(W * 0.145);
+  const spX  = R(logoCX + logoR + R(W * 0.024));
+  e.rrect(spX, R(logoCY - spH / 2), spW, spH, spH / 2,
+    "rgba(0,0,0,.42)", `${titleCol}22`, 1);
+  e.txt(scoreStr, spX + spW / 2, logoCY, R(spH * 0.48), `${titleCol}60`, "700");
 
   /* ── 11. TOP CORNER PILLS ─────────────────────────────────────────── */
   if (S.showDate) {
@@ -818,8 +821,7 @@ function renderGoal(ctx, S, hImg, aImg, bgImg, goalPlayerImg) {
 
   /* ── 12. FOOTER ───────────────────────────────────────────────────── */
   if (S.showBranding) {
-    const fy = R(H * 0.957);
-    e.txt(S.footer, W / 2, fy, 14, `${titleCol}44`, "400");
+    e.txt(S.footer, W / 2, R(H * 0.960), 14, `${titleCol}44`, "400");
   }
 }
 
