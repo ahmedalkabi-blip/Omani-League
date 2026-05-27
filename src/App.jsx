@@ -55,6 +55,10 @@ const DEFAULT = {
   bgOverlay:0.45, bgBlur:0, bgBrightness:95, bgScale:100,
   bgPosX:50, bgPosY:30, bgFit:"cover",
   bgImage:null, scoreSize:160, bgGradient:"strong",
+  goalScorerName:"أحمد الكندي", goalMinute:"23", goalShirtNumber:"10",
+  goalScoringTeam:"h",
+  goalBgColor:"#cc1111", goalTitleColor:"#ffffff",
+  goalLabelBg:"#e8c84a",  goalLabelColor:"#000000",
 };
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -572,39 +576,161 @@ function renderNextMatch(ctx, S, hImg, aImg, bgImg) {
   drawFooter(e, S, W, H, hImg, aImg);
 }
 
-function renderGoal(ctx, S, hImg, aImg, bgImg) {
-  const sz=CANVAS_SIZES[S.canvasSize], W=sz.w, H=sz.h;
-  const e=createEngine(ctx,W,H);
-  e.drawBackground(S,bgImg);
+function renderGoal(ctx, S, hImg, aImg, bgImg, goalPlayerImg) {
+  const sz  = CANVAS_SIZES[S.canvasSize], W = sz.w, H = sz.h;
+  const e   = createEngine(ctx, W, H);
+  const bgCol    = S.goalBgColor    || "#cc1111";
+  const titleCol = S.goalTitleColor || "#ffffff";
+  const labelBg  = S.goalLabelBg   || "#e8c84a";
+  const labelCol = S.goalLabelColor || "#000000";
+  const side     = S.goalScoringTeam || "h";
+  const clubImg  = side === "h" ? hImg : aImg;
+  const club     = getClub(S, side);
 
-  /* Golden radial burst behind the upper section */
+  /* ── 1. SOLID BACKGROUND ─────────────────────────────────────────────── */
+  ctx.fillStyle = bgCol; ctx.fillRect(0, 0, W, H);
+
+  /* ── 2. GHOST PLAYER (blurred, very faint, depth layer) ─────────────── */
+  if (goalPlayerImg) {
+    ctx.save();
+    ctx.filter = `blur(${R(W * 0.012)}px)`;
+    ctx.globalAlpha = 0.09;
+    const gh = H, gs = gh / (goalPlayerImg.naturalHeight || 1);
+    const gw = R((goalPlayerImg.naturalWidth || 1) * gs);
+    ctx.drawImage(goalPlayerImg, R((W - gw) * 0.5), 0, gw, gh);
+    ctx.restore();
+  }
+
+  /* ── 3. LARGE REPEATED "GOAL" TEXT — typographic background layer ───── */
+  const gFontSz = R(W * 0.285);
   ctx.save();
-  const burst=ctx.createRadialGradient(W/2, H*0.3, 0, W/2, H*0.3, W*0.6);
-  burst.addColorStop(0,"rgba(230,190,55,.18)"); burst.addColorStop(1,"rgba(0,0,0,0)");
-  ctx.fillStyle=burst; ctx.fillRect(0,0,W,H); ctx.restore();
+  ctx.font = `900 ${gFontSz}px 'Cairo','Tajawal',sans-serif`;
+  ctx.textBaseline = "middle"; ctx.textAlign = "left"; ctx.direction = "ltr";
+  const measW  = ctx.measureText("GOAL").width || (gFontSz * 3.2);
+  const scaleX = (W * 1.05) / measW;           // stretch text to fill 105% canvas
+  const rowH   = H * 0.172;
+  const rows   = Math.ceil(H / rowH) + 2;
+  ctx.fillStyle = titleCol;
+  for (let i = 0; i < rows; i++) {
+    ctx.save();
+    ctx.globalAlpha = i % 2 === 0 ? 0.20 : 0.13;
+    ctx.scale(scaleX, 1);
+    ctx.fillText("GOAL", (-W * 0.025) / scaleX, H * 0.055 + i * rowH);
+    ctx.restore();
+  }
+  ctx.restore();
 
-  drawTopStrip(e,S,W);
+  /* ── 4. DIAGONAL ACCENT STRIPES (left & right edges) ────────────────── */
+  const sY   = H * 0.38;
+  const sLen = W * 0.062;
+  const sDY  = H * 0.031;
+  const sGap = H * 0.040;
+  const sCnt = 4;
+  ctx.save();
+  ctx.strokeStyle = titleCol; ctx.lineWidth = R(W * 0.0046);
+  ctx.lineCap = "round"; ctx.globalAlpha = 0.62;
+  for (let i = 0; i < sCnt; i++) {
+    const yo = (i - (sCnt - 1) / 2) * sGap;
+    ctx.beginPath();
+    ctx.moveTo(R(W * 0.040),        R(sY + yo + sDY / 2));
+    ctx.lineTo(R(W * 0.040 + sLen), R(sY + yo - sDY / 2));
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(R(W * 0.960),        R(sY + yo + sDY / 2));
+    ctx.lineTo(R(W * 0.960 - sLen), R(sY + yo - sDY / 2));
+    ctx.stroke();
+  }
+  ctx.restore();
 
-  /* GOAL! banner pinned to top */
-  e.rrect(40, yAt(H,0.075), W-80, 90, 8, S.accent, null);
-  e.txt("⚽  GOAL!", W/2, yAt(H,0.075)+45, 50, "#000","900");
+  /* ── 5. FOREGROUND PLAYER IMAGE — dominant central element ──────────── */
+  if (goalPlayerImg) {
+    const ph = R(H * 0.88);
+    const ps = ph / (goalPlayerImg.naturalHeight || 1);
+    const pw = R((goalPlayerImg.naturalWidth || 1) * ps);
+    ctx.drawImage(goalPlayerImg, R((W - pw) / 2), R(H * 0.06), pw, ph);
+  } else {
+    const pR = R(W * 0.18);
+    const pCY = R(H * 0.40);
+    e.circ(W / 2, pCY, pR, `${bgCol}bb`, `${titleCol}88`, R(W * 0.004));
+    ctx.save(); ctx.globalAlpha = 0.55;
+    e.txt("⬆️ رفع صورة اللاعب", W / 2, pCY, R(W * 0.036), titleCol, "700");
+    ctx.restore();
+  }
 
-  const { LR, hX, aX, botY } = logoRow(W, H);
-  drawBottomOverlay(ctx, S, W, H, botY);
-  drawCompPill(e, S, W, yAt(H, 0.578));
+  /* ── 6. DARK FADE — bottom section ──────────────────────────────────── */
+  const fadeY = R(H * 0.72);
+  const fade  = ctx.createLinearGradient(0, fadeY, 0, H);
+  fade.addColorStop(0,    "rgba(0,0,0,0)");
+  fade.addColorStop(0.28, "rgba(0,0,0,.52)");
+  fade.addColorStop(0.65, "rgba(0,0,0,.78)");
+  fade.addColorStop(1,    "rgba(0,0,0,.90)");
+  ctx.fillStyle = fade; ctx.fillRect(0, fadeY, W, H - fadeY);
 
-  const rowY = yAt(H, 0.698);
-  drawTeamBlock(e, S, "h", hX, rowY, LR, hImg, W);
-  drawTeamBlock(e, S, "a", aX, rowY, LR, aImg, W);
-  drawCenterScore(e, S, W, rowY);
+  /* ── 7. SCORER LABEL ─────────────────────────────────────────────────── */
+  const lblH  = R(H * 0.058);
+  const lblW  = R(W * 0.56);
+  const lblCY = R(H * 0.375);
+  const lblX  = R((W - lblW) / 2);
+  const lblY  = R(lblCY - lblH / 2);
+  const pad   = R(lblH * 0.55);
 
-  /* Scorer card */
-  const scorY = yAt(H, 0.848);
-  e.rrect(44, scorY, W-88, 64, 8, "rgba(0,0,0,.5)", S.accent+"44", 1.5);
-  e.txt("المسجّل", W/2, scorY+17, 15, S.accent,"700");
-  e.txt(S.scorers, W/2, scorY+45, 22, "#fff","700","center",W-110);
+  e.rrect(lblX, lblY, lblW, lblH, lblH / 2, labelBg, null);
 
-  drawFooter(e, S, W, H, hImg, aImg);
+  const sNum = S.goalShirtNumber;
+  if (sNum) {
+    ctx.save();
+    ctx.font = `900 ${R(lblH * 0.50)}px 'Cairo','Tajawal',sans-serif`;
+    ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.direction = "ltr";
+    ctx.fillStyle = labelCol;
+    ctx.fillText(String(sNum), lblX + pad, lblCY);
+    ctx.restore();
+    e.rrect(lblX + R(pad * 1.90), lblY + R(lblH * 0.22), R(W * 0.0025), R(lblH * 0.56), 1, `${labelCol}44`, null);
+  }
+  const nameX1 = sNum ? lblX + R(pad * 2.55) : lblX + R(lblH * 0.4);
+  const nameX2 = lblX + lblW - R(lblH * 0.4);
+  e.txt(
+    S.goalScorerName || "اسم اللاعب",
+    (nameX1 + nameX2) / 2, lblCY,
+    R(lblH * 0.43), labelCol, "900", "center", nameX2 - nameX1
+  );
+
+  /* ── 8. MINUTE BADGE ─────────────────────────────────────────────────── */
+  const minR  = R(lblH * 0.60);
+  const minCX = lblX + lblW + R(lblH * 0.30) + minR;
+  e.circ(minCX, lblCY, minR, titleCol, null);
+  e.txt((S.goalMinute || "0") + "'", minCX, lblCY, R(lblH * 0.37), bgCol, "900");
+
+  /* ── 9. CLUB LOGO + SCORE ────────────────────────────────────────────── */
+  const logoR = R(W * 0.058);
+  const logoX = R(W * 0.80);
+  const logoY = R(H * 0.805);
+  e.drawLogo(clubImg, club.emoji, logoX, logoY, logoR, club.p, club.s);
+
+  // Small score pill to the left of the logo
+  const scoreStr = (S.hScore || "0") + " – " + (S.aScore || "0");
+  const spW = R(W * 0.20), spH = R(H * 0.042);
+  const spX = R(logoX - logoR - R(W * 0.04) - spW);
+  const spY = R(logoY - spH / 2);
+  e.rrect(spX, spY, spW, spH, spH / 2, "rgba(0,0,0,.45)", `${titleCol}33`, 1);
+  e.txt(scoreStr, spX + spW / 2, logoY, R(spH * 0.52), titleCol, "900");
+
+  /* ── 10. TOP CORNER PILLS ────────────────────────────────────────────── */
+  if (S.showDate) {
+    e.rrect(36, 28, 220, 44, 8, "rgba(0,0,0,.35)", `${titleCol}44`, 1);
+    e.txt(S.date, 146, 50, 18, titleCol, "600");
+  }
+  if (S.showSponsor) {
+    e.rrect(W - 256, 28, 220, 44, 8, "rgba(0,0,0,.35)", `${titleCol}44`, 1);
+    e.txt(S.compEn, W - 146, 50, 15, `${titleCol}bb`, "600");
+  }
+
+  /* ── 11. FOOTER ──────────────────────────────────────────────────────── */
+  if (S.showBranding) {
+    const fy = R(H * 0.916);
+    e.line(80, fy, W - 80, fy, `${titleCol}22`, 1);
+    e.txt(S.comp,   W / 2, fy + 20, 19, `${titleCol}66`, "600");
+    e.txt(S.footer, W / 2, fy + 52, 15, `${titleCol}44`, "400");
+  }
 }
 
 function renderMOTM(ctx, S, hImg, aImg, bgImg) {
@@ -1016,6 +1142,7 @@ function Designer({ onBack, theme, onThemeToggle }) {
   const [aImg,setAImg]    = useState(null);
   const [bgImg,setBgImg]  = useState(null);
   const [dl,setDl]        = useState(false);
+  const [goalPlayerImg, setGoalPlayerImg] = useState(null);
   const T = theme === "dark" ? DARK_T : LIGHT_T;
 
   const canvasRef = useRef(null);
@@ -1043,8 +1170,8 @@ function Designer({ onBack, theme, onThemeToggle }) {
     canvas.width=sz.w; canvas.height=sz.h;
     const ctx=canvas.getContext("2d");
     ctx.clearRect(0,0,sz.w,sz.h);
-    (RENDERERS[S.postType]||renderMatchday)(ctx,S,hImg,aImg,bgImg);
-  },[S,hImg,aImg,bgImg]);
+    (RENDERERS[S.postType]||renderMatchday)(ctx,S,hImg,aImg,bgImg,goalPlayerImg);
+  },[S,hImg,aImg,bgImg,goalPlayerImg]);
 
   const loadLogo=useCallback((side,e)=>{
     const file=e.target.files[0]; if (!file) return;
@@ -1072,6 +1199,17 @@ function Designer({ onBack, theme, onThemeToggle }) {
   },[U]);
 
   const removeBg=useCallback(()=>{setBgImg(null);U("bgImage",null);},[U]);
+
+  const loadGoalPlayer = useCallback(e => {
+    const file = e.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const img = new Image();
+      img.onload = () => { setGoalPlayerImg(img); U("goalPlayerImgUrl", ev.target.result); };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file); e.target.value = "";
+  }, [U]);
 
   const tryLoadClubLogo = useCallback((side, url) => {
     if (!url) return;
@@ -1311,6 +1449,77 @@ function Designer({ onBack, theme, onThemeToggle }) {
               </div>
             </Accordion>
           )}
+
+          {/* ── GOAL-SPECIFIC SECTIONS (only shown for Goal template) ── */}
+          {S.postType === "goal" && (<>
+
+            <Accordion title="تفاصيل الهدف" defaultOpen={true} accentColor={S.goalLabelBg||"#e8c84a"}>
+              <div style={{paddingTop:4}}>
+
+                {/* Player image upload */}
+                <div style={{marginBottom:8}}>
+                  <Lbl>صورة اللاعب (PNG شفاف)</Lbl>
+                  <label style={{
+                    display:"flex",alignItems:"center",justifyContent:"center",gap:6,
+                    border:`1.5px dashed ${S.goalPlayerImgUrl?(S.goalLabelBg||"#e8c84a"):T.inputBorder}`,
+                    borderRadius:8,padding:"10px",cursor:"pointer",fontSize:11,fontWeight:700,
+                    color:S.goalPlayerImgUrl?(S.goalLabelBg||"#e8c84a"):T.textFaint,transition:"all .15s",
+                  }}>
+                    {S.goalPlayerImgUrl ? "✓ تم رفع صورة اللاعب" : "⬆️ رفع صورة اللاعب"}
+                    <input type="file" accept="image/*" style={{display:"none"}} onChange={loadGoalPlayer}/>
+                  </label>
+                  {S.goalPlayerImgUrl && (
+                    <button onClick={()=>{setGoalPlayerImg(null);U("goalPlayerImgUrl",null);}} style={{
+                      marginTop:6,width:"100%",padding:"4px",borderRadius:6,fontSize:10,fontWeight:700,
+                      border:"1px solid rgba(239,68,68,.45)",background:"rgba(239,68,68,.08)",
+                      color:"rgba(239,68,68,.8)",cursor:"pointer",
+                    }}>✕ حذف الصورة</button>
+                  )}
+                </div>
+
+                {/* Scoring team */}
+                <F label="الفريق المسجل">
+                  <Sel value={S.goalScoringTeam||"h"} onChange={v=>U("goalScoringTeam",v)}>
+                    <option value="h">الفريق المضيف — {S.hNameAr}</option>
+                    <option value="a">الفريق الضيف — {S.aNameAr}</option>
+                  </Sel>
+                </F>
+
+                {/* Scorer info */}
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                  <F label="رقم القميص"><Inp value={S.goalShirtNumber||""} onChange={v=>U("goalShirtNumber",v)} dir="ltr"/></F>
+                  <F label="الدقيقة"><Inp value={S.goalMinute||""} onChange={v=>U("goalMinute",v)} dir="ltr"/></F>
+                </div>
+                <F label="اسم الهداف"><Inp value={S.goalScorerName||""} onChange={v=>U("goalScorerName",v)}/></F>
+              </div>
+            </Accordion>
+
+            <Accordion title="ألوان الهدف">
+              <div style={{paddingTop:4}}>
+                {[
+                  {label:"لون الخلفية",   key:"goalBgColor"},
+                  {label:'لون "GOAL"',    key:"goalTitleColor"},
+                  {label:"خلفية اللافتة",key:"goalLabelBg"},
+                  {label:"نص اللافتة",   key:"goalLabelColor"},
+                ].map(({label,key})=>(
+                  <div key={key} style={{marginBottom:12}}>
+                    <Lbl>{label}</Lbl>
+                    <div style={{display:"flex",gap:4,marginBottom:5,flexWrap:"wrap"}}>
+                      {["#cc1111","#003399","#006622","#e8c84a","#111111","#f5f5f5"].map(p=>(
+                        <button key={p} onClick={()=>U(key,p)} style={{
+                          width:24,height:24,borderRadius:4,background:p,cursor:"pointer",
+                          flexShrink:0,
+                          border:S[key]===p?`2.5px solid ${T.accent}`:`1px solid ${T.btnBorder}`,
+                        }}/>
+                      ))}
+                    </div>
+                    <ColPick value={S[key]||"#ffffff"} onChange={v=>U(key,v)}/>
+                  </div>
+                ))}
+              </div>
+            </Accordion>
+
+          </>)}
 
           <Accordion title="الخلفية">
             <div style={{paddingTop:4}}>
