@@ -272,8 +272,12 @@ function drawTopStrip(e, S, W, ctx) {
     ctx.restore();
   }
   if (S.showSponsor) {
-    e.rrect(W-256,24,220,40,4,"rgba(0,0,0,.38)","rgba(255,255,255,.1)",1);
-    e.txt(S.compEn,W-146,44,16,"rgba(255,255,255,.55)","600");
+    ctx.save();
+    ctx.shadowColor   = "rgba(0,0,0,.75)";
+    ctx.shadowBlur    = 12;
+    ctx.shadowOffsetY = 2;
+    e.txt(S.compEn, W - 44, 48, 15, "rgba(255,255,255,.70)", "600", "right");
+    ctx.restore();
   }
 }
 
@@ -823,8 +827,12 @@ function renderGoal(ctx, S, hImg, aImg, bgImg, goalPlayerImg) {
     ctx.restore();
   }
   if (S.showSponsor) {
-    e.rrect(W - 256, 28, 220, 44, 8, "rgba(0,0,0,.38)", `${titleCol}33`, 1);
-    e.txt(S.compEn, W - 146, 50, 15, `${titleCol}aa`, "600");
+    ctx.save();
+    ctx.shadowColor   = "rgba(0,0,0,.80)";
+    ctx.shadowBlur    = 12;
+    ctx.shadowOffsetY = 2;
+    e.txt(S.compEn, W - 44, 48, 15, `${titleCol}bb`, "600", "right");
+    ctx.restore();
   }
 
   /* ── 12. FOOTER ───────────────────────────────────────────────────── */
