@@ -1972,119 +1972,176 @@ function StudioHome({ onOpen, onOpenNews, theme, onThemeToggle, T }) {
 /* ── News Card canvas renderer ─────────────────────────────────────────── */
 function drawNewsCard(ctx, NC, bgImg) {
   const W = 1080, H = 1350, Rn = Math.round;
+  const M = 64;                          // side margin
+  const FOOT_H = 100;                    // footer zone height
 
-  /* 1. Background */
+  /* ── Helper: wrap text, max N lines, last line gets "…" if truncated ── */
+  function wrapLines(text, maxW, maxLines) {
+    const words = (text || "").split(" ").filter(Boolean);
+    const lines = [];
+    let cur = "";
+    for (const w of words) {
+      const test = cur ? cur + " " + w : w;
+      if (ctx.measureText(test).width > maxW && cur) {
+        lines.push(cur); cur = w;
+        if (lines.length === maxLines - 1) { cur = w; break; }
+      } else { cur = test; }
+    }
+    if (cur) {
+      // If we still have remaining words, truncate last line
+      const remaining = words.slice(words.indexOf(cur.split(" ")[0]));
+      const joined = remaining.join(" ");
+      if (ctx.measureText(joined).width > maxW) {
+        // Find how much fits with "…"
+        let t = "";
+        for (const w of remaining) {
+          const attempt = (t ? t + " " + w : w) + "…";
+          if (ctx.measureText(attempt).width > maxW && t) break;
+          t = (t ? t + " " + w : w);
+        }
+        lines.push(t + "…");
+      } else {
+        lines.push(joined);
+      }
+    }
+    return lines;
+  }
+
+  /* ── 1. BASE: full-canvas image or dark editorial background ────────── */
   if (bgImg) {
+    /* Cover-fit image to full canvas */
     const sc = Math.max(W / bgImg.naturalWidth, H / bgImg.naturalHeight);
     const dw = bgImg.naturalWidth * sc, dh = bgImg.naturalHeight * sc;
-    ctx.drawImage(bgImg, (W - dw) / 2, (H - dh) / 2, dw, dh);
-    const ov = ctx.createLinearGradient(0, 0, 0, H);
-    ov.addColorStop(0,   "rgba(0,0,0,.40)");
-    ov.addColorStop(0.45,"rgba(0,0,0,.52)");
-    ov.addColorStop(1,   "rgba(0,0,0,.92)");
-    ctx.fillStyle = ov; ctx.fillRect(0, 0, W, H);
+    ctx.drawImage(bgImg, Rn((W - dw) / 2), Rn((H - dh) / 2), Rn(dw), Rn(dh));
   } else {
-    const bg = ctx.createLinearGradient(0, 0, 0, H);
-    bg.addColorStop(0, "#0d1117"); bg.addColorStop(1, "#090912");
-    ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
-    /* subtle grid lines */
-    ctx.save(); ctx.strokeStyle = "rgba(255,255,255,.028)"; ctx.lineWidth = 1;
-    for (let x = 0; x < W; x += 90) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
-    for (let y = 0; y < H; y += 90) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+    /* No image: dark editorial base + upper image-zone placeholder */
+    const baseBg = ctx.createLinearGradient(0, 0, 0, H);
+    baseBg.addColorStop(0, "#141921");
+    baseBg.addColorStop(1, "#08090f");
+    ctx.fillStyle = baseBg; ctx.fillRect(0, 0, W, H);
+
+    /* Image zone: slightly lighter rectangle, upper 62% */
+    const zH = Rn(H * 0.62);
+    const zoneBg = ctx.createLinearGradient(0, 0, 0, zH);
+    zoneBg.addColorStop(0, "rgba(255,255,255,.06)");
+    zoneBg.addColorStop(1, "rgba(255,255,255,.01)");
+    ctx.fillStyle = zoneBg; ctx.fillRect(0, 0, W, zH);
+
+    /* Dashed frame */
+    ctx.save();
+    ctx.setLineDash([18, 10]);
+    ctx.strokeStyle = "rgba(255,255,255,.14)"; ctx.lineWidth = 2;
+    const fp = 48;
+    ctx.strokeRect(fp, fp, W - fp * 2, zH - fp);
+    ctx.setLineDash([]); ctx.restore();
+
+    /* Camera / upload prompt */
+    ctx.save();
+    ctx.font = `600 ${Rn(30)}px 'Cairo','Tajawal',sans-serif`;
+    ctx.fillStyle = "rgba(255,255,255,.22)";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.direction = "rtl";
+    ctx.fillText("↑ أضف صورة الخلفية من لوحة التحكم", W / 2, zH / 2);
     ctx.restore();
   }
 
-  const M = 72; // margin
+  /* ── 2. GRADIENT OVERLAYS ──────────────────────────────────────────── */
+  /* Top: darken for category + date readability */
+  const topOv = ctx.createLinearGradient(0, 0, 0, H * 0.24);
+  topOv.addColorStop(0, "rgba(0,0,0,.70)");
+  topOv.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = topOv; ctx.fillRect(0, 0, W, Rn(H * 0.24));
 
-  /* 2. Left accent bar */
-  ctx.save();
-  ctx.fillStyle = "#e8c84a";
-  ctx.fillRect(M, 72, 6, 64);
-  ctx.restore();
+  /* Bottom: from 38% → full-black by 72%, stays opaque to footer */
+  const botOv = ctx.createLinearGradient(0, H * 0.38, 0, H * 0.72);
+  botOv.addColorStop(0, "rgba(0,0,0,0)");
+  botOv.addColorStop(1, "rgba(0,0,0,.97)");
+  ctx.fillStyle = botOv; ctx.fillRect(0, Rn(H * 0.38), W, Rn(H * 0.34));
+  /* Solid black from 72% onward */
+  ctx.fillStyle = "rgba(0,0,0,.97)";
+  ctx.fillRect(0, Rn(H * 0.72), W, H - Rn(H * 0.72));
 
-  /* 3. Category label */
+  /* ── 3. CATEGORY BADGE — top-right ────────────────────────────────── */
   const cat = NC.category || "رياضة";
   ctx.save();
   ctx.font = `700 ${Rn(26)}px 'Cairo','Tajawal',sans-serif`;
   ctx.direction = "rtl"; ctx.textBaseline = "middle";
-  const catTxtW = ctx.measureText(cat).width;
-  const catPillW = catTxtW + 48;
-  ctx.beginPath();
-  ctx.roundRect(W - M - catPillW, 72, catPillW, 52, 26);
+  ctx.shadowColor = "rgba(0,0,0,.55)"; ctx.shadowBlur = 12;
+  const catTW  = ctx.measureText(cat).width;
+  const catPW  = Rn(catTW + 48), catPH = 50;
+  const catX   = W - M - catPW, catY = 56;
+  ctx.beginPath(); ctx.roundRect(catX, catY, catPW, catPH, catPH / 2);
   ctx.fillStyle = "#e8c84a"; ctx.fill();
+  ctx.shadowBlur = 0;
   ctx.fillStyle = "#000"; ctx.textAlign = "center";
-  ctx.fillText(cat, W - M - catPillW / 2, 98);
+  ctx.fillText(cat, catX + catPW / 2, catY + catPH / 2);
   ctx.restore();
 
-  /* 4. Date */
+  /* ── 4. DATE — top-left, same row as category ──────────────────────── */
   ctx.save();
-  ctx.font = `500 ${Rn(28)}px 'Cairo','Tajawal',sans-serif`;
-  ctx.fillStyle = "rgba(255,255,255,.48)";
-  ctx.textAlign = "right"; ctx.textBaseline = "middle"; ctx.direction = "rtl";
-  ctx.fillText(String(NC.date || ""), W - M, 172);
+  ctx.font = `500 ${Rn(25)}px 'Cairo','Tajawal',sans-serif`;
+  ctx.fillStyle = "rgba(255,255,255,.65)";
+  ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.direction = "ltr";
+  ctx.shadowColor = "rgba(0,0,0,.7)"; ctx.shadowBlur = 10;
+  ctx.fillText(String(NC.date || ""), M, catY + catPH / 2);
   ctx.restore();
 
-  /* 5. Accent divider line at 54% */
-  const divY = Rn(H * 0.54);
-  const lg = ctx.createLinearGradient(M, 0, W - M, 0);
-  lg.addColorStop(0, "rgba(232,200,74,0)");
-  lg.addColorStop(0.15,"rgba(232,200,74,.65)");
-  lg.addColorStop(0.85,"rgba(232,200,74,.65)");
-  lg.addColorStop(1, "rgba(232,200,74,0)");
-  ctx.fillStyle = lg;
-  ctx.fillRect(M, divY, W - M * 2, 2);
+  /* ── 5. GOLD ACCENT LINE — transition from image to text zone ──────── */
+  const lineY = Rn(H * 0.616);
+  const lineGrad = ctx.createLinearGradient(M, 0, W - M, 0);
+  lineGrad.addColorStop(0,    "rgba(232,200,74,0)");
+  lineGrad.addColorStop(0.06, "#e8c84a");
+  lineGrad.addColorStop(0.94, "#e8c84a");
+  lineGrad.addColorStop(1,    "rgba(232,200,74,0)");
+  ctx.fillStyle = lineGrad;
+  ctx.fillRect(M, lineY, W - M * 2, 3);
 
-  /* 6. Headline — wrapped, large */
-  const headFontSz = Rn(W * 0.066);        // ~71 px
-  const headLineH  = Rn(headFontSz * 1.30);
+  /* ── 6. HEADLINE — large, bold, RTL wrapped ────────────────────────── */
+  const headSz   = Rn(W * 0.068);        // ~73 px
+  const headLH   = Rn(headSz * 1.28);
+  const maxTxtW  = W - M * 2;
+  const headMaxL = 4;
+
   ctx.save();
-  ctx.font = `900 ${headFontSz}px 'Cairo','Tajawal',sans-serif`;
-  ctx.fillStyle = "rgba(255,255,255,.95)";
+  ctx.font = `900 ${headSz}px 'Cairo','Tajawal',sans-serif`;
+  ctx.fillStyle = "#ffffff";
   ctx.textAlign = "right"; ctx.textBaseline = "top"; ctx.direction = "rtl";
-  ctx.shadowColor = "rgba(0,0,0,.55)"; ctx.shadowBlur = 18;
-  const headWords = (NC.headline || "العنوان الرئيسي").split(" ");
-  const maxTxtW   = W - M * 2;
-  let   line = "", headY = divY + 36, finalHeadY = headY;
-  for (const word of headWords) {
-    const test = line ? line + " " + word : word;
-    if (ctx.measureText(test).width > maxTxtW && line) {
-      ctx.fillText(line, W - M, headY); headY += headLineH; line = word;
-    } else { line = test; }
-  }
-  if (line) { ctx.fillText(line, W - M, headY); finalHeadY = headY + headLineH; }
+  ctx.shadowColor = "rgba(0,0,0,.7)"; ctx.shadowBlur = 22;
+  const headLines = wrapLines(NC.headline || "العنوان الرئيسي", maxTxtW, headMaxL);
+  let headY = lineY + 36;
+  for (const ln of headLines) { ctx.fillText(ln, W - M, headY); headY += headLH; }
   ctx.restore();
+  const afterHead = headY;
 
-  /* 7. Subheadline — wrapped, smaller */
-  if (NC.subheadline) {
-    const subFontSz = Rn(W * 0.036);       // ~39 px
-    const subLineH  = Rn(subFontSz * 1.55);
-    ctx.save();
-    ctx.font = `500 ${subFontSz}px 'Cairo','Tajawal',sans-serif`;
-    ctx.fillStyle = "rgba(255,255,255,.58)";
-    ctx.textAlign = "right"; ctx.textBaseline = "top"; ctx.direction = "rtl";
-    const subWords = NC.subheadline.split(" ");
-    let subLine = "", subY = finalHeadY + 28;
-    for (const word of subWords) {
-      const test = subLine ? subLine + " " + word : word;
-      if (ctx.measureText(test).width > maxTxtW && subLine) {
-        ctx.fillText(subLine, W - M, subY); subY += subLineH; subLine = word;
-      } else { subLine = test; }
+  /* ── 7. SUBHEADLINE — smaller, muted, max 3 lines ──────────────────── */
+  const textBottom = H - FOOT_H - 32;      // don't let text enter footer zone
+  if (NC.subheadline && afterHead + 20 < textBottom) {
+    const subSz  = Rn(W * 0.034);         // ~37 px
+    const subLH  = Rn(subSz * 1.60);
+    const subMax = Math.min(3, Math.floor((textBottom - afterHead - 20) / subLH));
+    if (subMax > 0) {
+      ctx.save();
+      ctx.font = `400 ${subSz}px 'Cairo','Tajawal',sans-serif`;
+      ctx.fillStyle = "rgba(255,255,255,.55)";
+      ctx.textAlign = "right"; ctx.textBaseline = "top"; ctx.direction = "rtl";
+      ctx.shadowColor = "rgba(0,0,0,.5)"; ctx.shadowBlur = 12;
+      const subLines = wrapLines(NC.subheadline, maxTxtW, subMax);
+      let subY = afterHead + 24;
+      for (const ln of subLines) { ctx.fillText(ln, W - M, subY); subY += subLH; }
+      ctx.restore();
     }
-    if (subLine) ctx.fillText(subLine, W - M, subY);
-    ctx.restore();
   }
 
-  /* 8. Footer bar */
+  /* ── 8. FOOTER ZONE ─────────────────────────────────────────────────── */
+  const footY = H - FOOT_H;
+  /* Gold separator line */
   ctx.save();
-  ctx.fillStyle = "rgba(0,0,0,.45)";
-  ctx.fillRect(0, H - 96, W, 96);
-  ctx.strokeStyle = "rgba(232,200,74,.30)";
-  ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(M, H - 96); ctx.lineTo(W - M, H - 96); ctx.stroke();
-  ctx.font = `600 ${Rn(26)}px 'Cairo','Tajawal',sans-serif`;
-  ctx.fillStyle = "rgba(255,255,255,.38)";
+  ctx.strokeStyle = "rgba(232,200,74,.35)"; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(M, footY); ctx.lineTo(W - M, footY); ctx.stroke();
+  /* Website / footer text */
+  ctx.font = `500 ${Rn(24)}px 'Cairo','Tajawal',sans-serif`;
+  ctx.fillStyle = "rgba(255,255,255,.35)";
   ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.direction = "rtl";
-  ctx.fillText(NC.footer || "", W / 2, H - 48);
+  ctx.fillText(NC.footer || "", W / 2, footY + FOOT_H / 2);
   ctx.restore();
 }
 
