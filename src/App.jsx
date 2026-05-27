@@ -1444,14 +1444,19 @@ function Designer({ onBack, theme, onThemeToggle }) {
             </div>
             <div style={{display:"flex",alignItems:"center",gap:8}}>
               {[
-                {ar:S.hNameAr,e:Object.values(CLUBS).find(c=>c.ar===S.hNameAr)?.e||"⚽"},
+                Object.values(CLUBS).find(c=>c.ar===S.hNameAr)||{ar:S.hNameAr,e:"⚽",logo:null},
                 null,
-                {ar:S.aNameAr,e:Object.values(CLUBS).find(c=>c.ar===S.aNameAr)?.e||"🦁"},
+                Object.values(CLUBS).find(c=>c.ar===S.aNameAr)||{ar:S.aNameAr,e:"🦁",logo:null},
               ].map((item,i)=>item?(
                 <div key={i} style={{
-                  display:"flex",alignItems:"center",gap:6,borderRadius:999,padding:"4px 12px",
-                  fontSize:11,fontWeight:700,background:T.stagePill,border:`1px solid ${T.stagePillBorder}`,color:T.text,
-                }}>{item.e} {item.ar}</div>
+                  display:"flex",alignItems:"center",gap:5,borderRadius:999,
+                  padding:"3px 10px 3px 4px",
+                  fontSize:11,fontWeight:700,background:T.stagePill,
+                  border:`1px solid ${T.stagePillBorder}`,color:T.text,
+                }}>
+                  <ClubLogoImg src={item.logo} emoji={item.e} alt={item.ar} size={20}/>
+                  {item.ar}
+                </div>
               ):(
                 <span key={i} style={{fontSize:9,color:T.textFaint}}>◆</span>
               ))}
