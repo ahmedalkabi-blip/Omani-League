@@ -1969,44 +1969,278 @@ function StudioHome({ onOpen, onOpenNews, theme, onThemeToggle, T }) {
 /* ═══════════════════════════════════════════════════════════════════════════
    NEWS CARD STUDIO — placeholder shell (UI to be built here)
 ═══════════════════════════════════════════════════════════════════════════ */
+/* ── News Card canvas renderer ─────────────────────────────────────────── */
+function drawNewsCard(ctx, NC, bgImg) {
+  const W = 1080, H = 1350, Rn = Math.round;
+
+  /* 1. Background */
+  if (bgImg) {
+    const sc = Math.max(W / bgImg.naturalWidth, H / bgImg.naturalHeight);
+    const dw = bgImg.naturalWidth * sc, dh = bgImg.naturalHeight * sc;
+    ctx.drawImage(bgImg, (W - dw) / 2, (H - dh) / 2, dw, dh);
+    const ov = ctx.createLinearGradient(0, 0, 0, H);
+    ov.addColorStop(0,   "rgba(0,0,0,.40)");
+    ov.addColorStop(0.45,"rgba(0,0,0,.52)");
+    ov.addColorStop(1,   "rgba(0,0,0,.92)");
+    ctx.fillStyle = ov; ctx.fillRect(0, 0, W, H);
+  } else {
+    const bg = ctx.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, "#0d1117"); bg.addColorStop(1, "#090912");
+    ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+    /* subtle grid lines */
+    ctx.save(); ctx.strokeStyle = "rgba(255,255,255,.028)"; ctx.lineWidth = 1;
+    for (let x = 0; x < W; x += 90) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+    for (let y = 0; y < H; y += 90) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+    ctx.restore();
+  }
+
+  const M = 72; // margin
+
+  /* 2. Left accent bar */
+  ctx.save();
+  ctx.fillStyle = "#e8c84a";
+  ctx.fillRect(M, 72, 6, 64);
+  ctx.restore();
+
+  /* 3. Category label */
+  const cat = NC.category || "رياضة";
+  ctx.save();
+  ctx.font = `700 ${Rn(26)}px 'Cairo','Tajawal',sans-serif`;
+  ctx.direction = "rtl"; ctx.textBaseline = "middle";
+  const catTxtW = ctx.measureText(cat).width;
+  const catPillW = catTxtW + 48;
+  ctx.beginPath();
+  ctx.roundRect(W - M - catPillW, 72, catPillW, 52, 26);
+  ctx.fillStyle = "#e8c84a"; ctx.fill();
+  ctx.fillStyle = "#000"; ctx.textAlign = "center";
+  ctx.fillText(cat, W - M - catPillW / 2, 98);
+  ctx.restore();
+
+  /* 4. Date */
+  ctx.save();
+  ctx.font = `500 ${Rn(28)}px 'Cairo','Tajawal',sans-serif`;
+  ctx.fillStyle = "rgba(255,255,255,.48)";
+  ctx.textAlign = "right"; ctx.textBaseline = "middle"; ctx.direction = "rtl";
+  ctx.fillText(String(NC.date || ""), W - M, 172);
+  ctx.restore();
+
+  /* 5. Accent divider line at 54% */
+  const divY = Rn(H * 0.54);
+  const lg = ctx.createLinearGradient(M, 0, W - M, 0);
+  lg.addColorStop(0, "rgba(232,200,74,0)");
+  lg.addColorStop(0.15,"rgba(232,200,74,.65)");
+  lg.addColorStop(0.85,"rgba(232,200,74,.65)");
+  lg.addColorStop(1, "rgba(232,200,74,0)");
+  ctx.fillStyle = lg;
+  ctx.fillRect(M, divY, W - M * 2, 2);
+
+  /* 6. Headline — wrapped, large */
+  const headFontSz = Rn(W * 0.066);        // ~71 px
+  const headLineH  = Rn(headFontSz * 1.30);
+  ctx.save();
+  ctx.font = `900 ${headFontSz}px 'Cairo','Tajawal',sans-serif`;
+  ctx.fillStyle = "rgba(255,255,255,.95)";
+  ctx.textAlign = "right"; ctx.textBaseline = "top"; ctx.direction = "rtl";
+  ctx.shadowColor = "rgba(0,0,0,.55)"; ctx.shadowBlur = 18;
+  const headWords = (NC.headline || "العنوان الرئيسي").split(" ");
+  const maxTxtW   = W - M * 2;
+  let   line = "", headY = divY + 36, finalHeadY = headY;
+  for (const word of headWords) {
+    const test = line ? line + " " + word : word;
+    if (ctx.measureText(test).width > maxTxtW && line) {
+      ctx.fillText(line, W - M, headY); headY += headLineH; line = word;
+    } else { line = test; }
+  }
+  if (line) { ctx.fillText(line, W - M, headY); finalHeadY = headY + headLineH; }
+  ctx.restore();
+
+  /* 7. Subheadline — wrapped, smaller */
+  if (NC.subheadline) {
+    const subFontSz = Rn(W * 0.036);       // ~39 px
+    const subLineH  = Rn(subFontSz * 1.55);
+    ctx.save();
+    ctx.font = `500 ${subFontSz}px 'Cairo','Tajawal',sans-serif`;
+    ctx.fillStyle = "rgba(255,255,255,.58)";
+    ctx.textAlign = "right"; ctx.textBaseline = "top"; ctx.direction = "rtl";
+    const subWords = NC.subheadline.split(" ");
+    let subLine = "", subY = finalHeadY + 28;
+    for (const word of subWords) {
+      const test = subLine ? subLine + " " + word : word;
+      if (ctx.measureText(test).width > maxTxtW && subLine) {
+        ctx.fillText(subLine, W - M, subY); subY += subLineH; subLine = word;
+      } else { subLine = test; }
+    }
+    if (subLine) ctx.fillText(subLine, W - M, subY);
+    ctx.restore();
+  }
+
+  /* 8. Footer bar */
+  ctx.save();
+  ctx.fillStyle = "rgba(0,0,0,.45)";
+  ctx.fillRect(0, H - 96, W, 96);
+  ctx.strokeStyle = "rgba(232,200,74,.30)";
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(M, H - 96); ctx.lineTo(W - M, H - 96); ctx.stroke();
+  ctx.font = `600 ${Rn(26)}px 'Cairo','Tajawal',sans-serif`;
+  ctx.fillStyle = "rgba(255,255,255,.38)";
+  ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.direction = "rtl";
+  ctx.fillText(NC.footer || "", W / 2, H - 48);
+  ctx.restore();
+}
+
+/* ── News Card Studio component ────────────────────────────────────────── */
 function NewsCardStudio({ onBack, theme, T }) {
-  const isDark = theme === "dark";
+  const isDark     = theme === "dark";
+  const ncRef      = useRef(null);
+  const [NC, setNC] = useState({
+    category:    "رياضة",
+    date:        "٢٤ مايو ٢٠٢٦",
+    headline:    "عنوان الخبر الرياضي الرئيسي يُكتب هنا",
+    subheadline: "تفاصيل وملخص الخبر يُكتبان في هذا الحقل",
+    footer:      "osl.om  ·  @OmanLeague",
+  });
+  const [ncBgImg, setNcBgImg] = useState(null);
+  const UN = (k, v) => setNC(p => ({ ...p, [k]: v }));
+
+  /* Render canvas whenever state changes */
+  useEffect(() => {
+    const canvas = ncRef.current; if (!canvas) return;
+    canvas.width = 1080; canvas.height = 1350;
+    drawNewsCard(canvas.getContext("2d"), NC, ncBgImg);
+  }, [NC, ncBgImg]);
+
+  /* Background image loader */
+  const loadBg = useCallback(e => {
+    const file = e.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const img = new Image();
+      img.onload = () => setNcBgImg(img);
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  }, []);
+
+  /* Shared input style */
+  const inp = { width:"100%", padding:"7px 10px", borderRadius:8,
+    border:`1px solid ${T.inputBorder}`, background:T.inputBg,
+    color:T.inputText, fontSize:13, fontFamily:"inherit", boxSizing:"border-box" };
+
+  /* Preview dimensions (display) */
+  const PH = 560, PW = Math.round(PH * 1080 / 1350); // 448 px wide
+
   return (
     <div dir="rtl" style={{
       fontFamily:"'Cairo','Tajawal',sans-serif",
-      minHeight:"100vh", display:"flex", flexDirection:"column",
-      background: isDark ? "#07070e" : T.appBg,
-      color: T.text,
+      height:"100vh", display:"flex", flexDirection:"column",
+      background: isDark ? "#07070e" : T.appBg, color:T.text, overflow:"hidden",
     }}>
+
+      {/* Header */}
       <header style={{
-        display:"flex", alignItems:"center", gap:12,
-        padding:"14px 32px",
+        display:"flex", alignItems:"center", gap:12, padding:"12px 24px",
         borderBottom:`1px solid ${T.divider}`,
         background: isDark ? "rgba(7,7,14,.85)" : T.topBarBg,
+        flexShrink:0,
       }}>
         <button onClick={onBack} style={{
-          background:"none", border:`1px solid ${T.divider}`,
-          borderRadius:8, padding:"6px 14px", cursor:"pointer",
-          fontSize:12, fontWeight:700, color:T.textMuted,
-        }}>
-          ← الرئيسية
-        </button>
-        <div style={{fontSize:14, fontWeight:900, color:T.text}}>
-          مصمم البطاقات الإخبارية
-        </div>
+          background:"none", border:`1px solid ${T.divider}`, borderRadius:8,
+          padding:"6px 14px", cursor:"pointer", fontSize:12, fontWeight:700, color:T.textMuted,
+        }}>← الرئيسية</button>
+        <div style={{fontSize:14, fontWeight:900, color:T.text}}>مصمم البطاقات الإخبارية</div>
+        <div style={{
+          marginRight:"auto", borderRadius:999, padding:"3px 10px",
+          background:"rgba(16,185,129,.1)", border:"1px solid rgba(16,185,129,.25)",
+          fontSize:9, fontWeight:700, color:"#10b981",
+        }}>News Card Studio</div>
       </header>
-      <main style={{
-        flex:1, display:"flex", alignItems:"center", justifyContent:"center",
-        flexDirection:"column", gap:12, padding:40,
-      }}>
-        <div style={{fontSize:40}}>📰</div>
-        <div style={{fontSize:20, fontWeight:900, color:T.text}}>
-          News Card Studio
+
+      {/* Body */}
+      <div style={{flex:1, display:"flex", overflow:"hidden"}}>
+
+        {/* LEFT: controls */}
+        <aside style={{
+          width:272, flexShrink:0, overflowY:"auto", padding:"16px 14px",
+          borderLeft:`1px solid ${T.divider}`, background:T.sidebarBg,
+          display:"flex", flexDirection:"column", gap:14,
+        }}>
+
+          {/* Category */}
+          <div>
+            <div style={{fontSize:10, fontWeight:700, color:T.secTitle, marginBottom:5, letterSpacing:".04em"}}>التصنيف</div>
+            <input value={NC.category} onChange={e=>UN("category",e.target.value)} style={inp}/>
+          </div>
+
+          {/* Date */}
+          <div>
+            <div style={{fontSize:10, fontWeight:700, color:T.secTitle, marginBottom:5, letterSpacing:".04em"}}>التاريخ</div>
+            <input value={NC.date} onChange={e=>UN("date",e.target.value)} style={inp}/>
+          </div>
+
+          {/* Headline */}
+          <div>
+            <div style={{fontSize:10, fontWeight:700, color:T.secTitle, marginBottom:5, letterSpacing:".04em"}}>العنوان الرئيسي</div>
+            <textarea value={NC.headline} onChange={e=>UN("headline",e.target.value)} rows={3}
+              style={{...inp, resize:"vertical"}}/>
+          </div>
+
+          {/* Subheadline */}
+          <div>
+            <div style={{fontSize:10, fontWeight:700, color:T.secTitle, marginBottom:5, letterSpacing:".04em"}}>العنوان الفرعي</div>
+            <textarea value={NC.subheadline} onChange={e=>UN("subheadline",e.target.value)} rows={3}
+              style={{...inp, resize:"vertical"}}/>
+          </div>
+
+          {/* Footer text */}
+          <div>
+            <div style={{fontSize:10, fontWeight:700, color:T.secTitle, marginBottom:5, letterSpacing:".04em"}}>الموقع / النص السفلي</div>
+            <input value={NC.footer} onChange={e=>UN("footer",e.target.value)} style={inp}/>
+          </div>
+
+          {/* Background image */}
+          <div>
+            <div style={{fontSize:10, fontWeight:700, color:T.secTitle, marginBottom:5, letterSpacing:".04em"}}>صورة الخلفية</div>
+            <label style={{
+              display:"block", padding:"10px", borderRadius:8, cursor:"pointer", textAlign:"center",
+              border:`1px dashed ${T.inputBorder}`, background:T.inputBg,
+              fontSize:11, color: ncBgImg ? "#10b981" : T.textMuted,
+            }}>
+              {ncBgImg ? "✓ تم رفع الصورة" : "اختر صورة..."}
+              <input type="file" accept="image/*" onChange={loadBg} style={{display:"none"}}/>
+            </label>
+            {ncBgImg && (
+              <button onClick={()=>setNcBgImg(null)} style={{
+                marginTop:6, width:"100%", padding:"6px", borderRadius:6,
+                border:`1px solid ${T.btnBorder}`, background:T.btnBg,
+                cursor:"pointer", fontSize:11, color:T.btnText,
+              }}>حذف الصورة</button>
+            )}
+          </div>
+
+        </aside>
+
+        {/* RIGHT: preview stage */}
+        <div style={{
+          flex:1, display:"flex", flexDirection:"column",
+          alignItems:"center", justifyContent:"center",
+          background: isDark
+            ? "radial-gradient(ellipse at 50% 35%,#14142a 0%,#09090f 100%)"
+            : "#dde1e7",
+          overflow:"auto", padding:24, gap:10,
+        }}>
+          <div style={{fontSize:10, fontWeight:600, letterSpacing:".06em",
+            color: isDark ? "rgba(255,255,255,.22)" : "rgba(0,0,0,.28)"}}>
+            1080 × 1350 px
+          </div>
+          <canvas ref={ncRef} style={{
+            display:"block", width:PW, height:PH,
+            borderRadius:10,
+            boxShadow:`0 0 0 1px ${isDark?"rgba(255,255,255,.07)":"rgba(0,0,0,.08)"}, 0 24px 80px rgba(0,0,0,.55)`,
+          }}/>
         </div>
-        <div style={{fontSize:13, color:T.textMuted}}>
-          coming soon
-        </div>
-      </main>
+
+      </div>
     </div>
   );
 }
