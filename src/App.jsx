@@ -1678,12 +1678,11 @@ function Designer({ onBack, theme, onThemeToggle }) {
    STUDIO HOME
 ═══════════════════════════════════════════════════════════════════════════ */
 const COMING_SOON = [
-  { id:"news",       ar:"مصمم البطاقات الإخبارية", en:"News Card Studio",      icon:"📰" },
   { id:"carousel",   ar:"مصمم الكاروسيل",           en:"Carousel Studio",       icon:"🎠" },
   { id:"tournament", ar:"جرافيكس البطولات",          en:"Tournament Graphics",   icon:"🏆" },
 ];
 
-function StudioHome({ onOpen, theme, onThemeToggle, T }) {
+function StudioHome({ onOpen, onOpenNews, theme, onThemeToggle, T }) {
   const isDark = theme === "dark";
   return (
     <div dir="rtl" style={{
@@ -1893,10 +1892,38 @@ function StudioHome({ onOpen, theme, onThemeToggle, T }) {
           </div>
         </div>
 
+        {/* ── NEWS CARD STUDIO — active tool ── */}
+        <div onClick={onOpenNews} style={{
+          width:"100%",maxWidth:600,marginBottom:16,
+          borderRadius:16,padding:"22px 28px",cursor:"pointer",
+          background: isDark ? "rgba(255,255,255,.03)" : T.btnBg,
+          border:`1px solid ${T.divider}`,
+          display:"flex",alignItems:"center",gap:18,
+          transition:"opacity .15s,transform .15s",
+        }}
+          onMouseEnter={e=>{e.currentTarget.style.opacity=".8";e.currentTarget.style.transform="translateY(-2px)"}}
+          onMouseLeave={e=>{e.currentTarget.style.opacity="1";e.currentTarget.style.transform="none"}}
+        >
+          <div style={{fontSize:32,lineHeight:1}}>📰</div>
+          <div style={{flex:1}}>
+            <div style={{fontSize:13,fontWeight:800,color:T.text,marginBottom:3}}>
+              مصمم البطاقات الإخبارية
+            </div>
+            <div style={{fontSize:10,color:T.textMuted}}>News Card Studio</div>
+          </div>
+          <div style={{
+            borderRadius:999,padding:"4px 12px",
+            background:"rgba(16,185,129,.1)",border:"1px solid rgba(16,185,129,.25)",
+            fontSize:9,fontWeight:700,color:"#10b981",whiteSpace:"nowrap",
+          }}>
+            جديد
+          </div>
+        </div>
+
         {/* ── COMING SOON CARDS ── */}
         <div style={{
           width:"100%",maxWidth:600,
-          display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,
+          display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:12,
         }}>
           {COMING_SOON.map(c => (
             <div key={c.id} className="sh-cs-card" style={{
@@ -1940,6 +1967,51 @@ function StudioHome({ onOpen, theme, onThemeToggle, T }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+   NEWS CARD STUDIO — placeholder shell (UI to be built here)
+═══════════════════════════════════════════════════════════════════════════ */
+function NewsCardStudio({ onBack, theme, T }) {
+  const isDark = theme === "dark";
+  return (
+    <div dir="rtl" style={{
+      fontFamily:"'Cairo','Tajawal',sans-serif",
+      minHeight:"100vh", display:"flex", flexDirection:"column",
+      background: isDark ? "#07070e" : T.appBg,
+      color: T.text,
+    }}>
+      <header style={{
+        display:"flex", alignItems:"center", gap:12,
+        padding:"14px 32px",
+        borderBottom:`1px solid ${T.divider}`,
+        background: isDark ? "rgba(7,7,14,.85)" : T.topBarBg,
+      }}>
+        <button onClick={onBack} style={{
+          background:"none", border:`1px solid ${T.divider}`,
+          borderRadius:8, padding:"6px 14px", cursor:"pointer",
+          fontSize:12, fontWeight:700, color:T.textMuted,
+        }}>
+          ← الرئيسية
+        </button>
+        <div style={{fontSize:14, fontWeight:900, color:T.text}}>
+          مصمم البطاقات الإخبارية
+        </div>
+      </header>
+      <main style={{
+        flex:1, display:"flex", alignItems:"center", justifyContent:"center",
+        flexDirection:"column", gap:12, padding:40,
+      }}>
+        <div style={{fontSize:40}}>📰</div>
+        <div style={{fontSize:20, fontWeight:900, color:T.text}}>
+          News Card Studio
+        </div>
+        <div style={{fontSize:13, color:T.textMuted}}>
+          coming soon
+        </div>
+      </main>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
    ROOT APP — view router
 ═══════════════════════════════════════════════════════════════════════════ */
 export default function App() {
@@ -1950,5 +2022,7 @@ export default function App() {
 
   if (view === "designer")
     return <Designer onBack={() => setView("studio")} theme={theme} onThemeToggle={toggleTheme} />;
-  return <StudioHome onOpen={() => setView("designer")} theme={theme} onThemeToggle={toggleTheme} T={T} />;
+  if (view === "newscard")
+    return <NewsCardStudio onBack={() => setView("studio")} theme={theme} T={T} />;
+  return <StudioHome onOpen={() => setView("designer")} onOpenNews={() => setView("newscard")} theme={theme} onThemeToggle={toggleTheme} T={T} />;
 }
