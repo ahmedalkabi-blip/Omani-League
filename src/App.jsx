@@ -1970,42 +1970,40 @@ function StudioHome({ onOpen, onOpenNews, theme, onThemeToggle, T }) {
    NEWS CARD STUDIO — placeholder shell (UI to be built here)
 ═══════════════════════════════════════════════════════════════════════════ */
 /* ── News Card canvas renderer ─────────────────────────────────────────── */
+/* ── Canvas text-wrap utility (shared by all card draw functions) ────── */
+function wrapText(ctx, text, maxW, maxLines) {
+  const words = (text || "").split(" ").filter(Boolean);
+  const lines = [];
+  let cur = "";
+  for (const w of words) {
+    const test = cur ? cur + " " + w : w;
+    if (ctx.measureText(test).width > maxW && cur) {
+      lines.push(cur); cur = w;
+      if (lines.length === maxLines - 1) { cur = w; break; }
+    } else { cur = test; }
+  }
+  if (cur) {
+    const remaining = words.slice(words.indexOf(cur.split(" ")[0]));
+    const joined = remaining.join(" ");
+    if (ctx.measureText(joined).width > maxW) {
+      let t = "";
+      for (const w of remaining) {
+        const attempt = (t ? t + " " + w : w) + "…";
+        if (ctx.measureText(attempt).width > maxW && t) break;
+        t = (t ? t + " " + w : w);
+      }
+      lines.push(t + "…");
+    } else {
+      lines.push(joined);
+    }
+  }
+  return lines;
+}
+
 function drawNewsCard(ctx, NC, bgImg) {
   const W = 1080, H = 1350, Rn = Math.round;
-  const M = 64;                          // side margin
-  const FOOT_H = 100;                    // footer zone height
-
-  /* ── Helper: wrap text, max N lines, last line gets "…" if truncated ── */
-  function wrapLines(text, maxW, maxLines) {
-    const words = (text || "").split(" ").filter(Boolean);
-    const lines = [];
-    let cur = "";
-    for (const w of words) {
-      const test = cur ? cur + " " + w : w;
-      if (ctx.measureText(test).width > maxW && cur) {
-        lines.push(cur); cur = w;
-        if (lines.length === maxLines - 1) { cur = w; break; }
-      } else { cur = test; }
-    }
-    if (cur) {
-      // If we still have remaining words, truncate last line
-      const remaining = words.slice(words.indexOf(cur.split(" ")[0]));
-      const joined = remaining.join(" ");
-      if (ctx.measureText(joined).width > maxW) {
-        // Find how much fits with "…"
-        let t = "";
-        for (const w of remaining) {
-          const attempt = (t ? t + " " + w : w) + "…";
-          if (ctx.measureText(attempt).width > maxW && t) break;
-          t = (t ? t + " " + w : w);
-        }
-        lines.push(t + "…");
-      } else {
-        lines.push(joined);
-      }
-    }
-    return lines;
-  }
+  const M = 64;
+  const FOOT_H = 100;
 
   /* ── 1. BASE: full-canvas image or dark editorial background ────────── */
   if (bgImg) {
@@ -2044,21 +2042,27 @@ function drawNewsCard(ctx, NC, bgImg) {
     ctx.restore();
   }
 
-  /* ── 2. GRADIENT OVERLAYS ──────────────────────────────────────────── */
-  /* Top: lightest possible touch — just enough for badge/date legibility */
-  const topOv = ctx.createLinearGradient(0, 0, 0, H * 0.22);
-  topOv.addColorStop(0, "rgba(0,0,0,.55)");
-  topOv.addColorStop(1, "rgba(0,0,0,0)");
-  ctx.fillStyle = topOv; ctx.fillRect(0, 0, W, Rn(H * 0.22));
-
-  /* Bottom: from 50% → near-black by 80%, smooth long fade */
-  const botOv = ctx.createLinearGradient(0, H * 0.50, 0, H * 0.80);
-  botOv.addColorStop(0, "rgba(0,0,0,0)");
-  botOv.addColorStop(1, "rgba(0,0,0,.97)");
-  ctx.fillStyle = botOv; ctx.fillRect(0, Rn(H * 0.50), W, Rn(H * 0.30));
-  /* Solid from 80% onward */
-  ctx.fillStyle = "rgba(0,0,0,.97)";
-  ctx.fillRect(0, Rn(H * 0.80), W, H - Rn(H * 0.80));
+  /* ── 2. GRADIENT OVERLAYS (controlled by NC.gradient) ─────────────── */
+  const gradStyle = NC.gradient || "strong";
+  if (gradStyle !== "none") {
+    /* Top: just enough to keep badge/date legible */
+    const topAlpha = gradStyle === "soft" ? ".38" : ".55";
+    const topOv = ctx.createLinearGradient(0, 0, 0, H * 0.22);
+    topOv.addColorStop(0, `rgba(0,0,0,${topAlpha})`);
+    topOv.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = topOv; ctx.fillRect(0, 0, W, Rn(H * 0.22));
+    /* Bottom: smooth fade from mid-image into the text zone */
+    const botStart = gradStyle === "soft" ? 0.56 : 0.50;
+    const botEnd   = gradStyle === "soft" ? 0.86 : 0.80;
+    const maxAlpha = gradStyle === "soft" ? ".82" : ".97";
+    const botOv = ctx.createLinearGradient(0, H * botStart, 0, H * botEnd);
+    botOv.addColorStop(0, "rgba(0,0,0,0)");
+    botOv.addColorStop(1, `rgba(0,0,0,${maxAlpha})`);
+    ctx.fillStyle = botOv;
+    ctx.fillRect(0, Rn(H * botStart), W, Rn(H * (botEnd - botStart)));
+    ctx.fillStyle = `rgba(0,0,0,${maxAlpha})`;
+    ctx.fillRect(0, Rn(H * botEnd), W, H - Rn(H * botEnd));
+  }
 
   /* ── 3. CATEGORY BADGE — top-right ────────────────────────────────── */
   const cat = NC.category || "رياضة";
@@ -2106,7 +2110,7 @@ function drawNewsCard(ctx, NC, bgImg) {
   ctx.fillStyle = "#ffffff";
   ctx.textAlign = "right"; ctx.textBaseline = "top"; ctx.direction = "rtl";
   ctx.shadowColor = "rgba(0,0,0,.7)"; ctx.shadowBlur = 22;
-  const headLines = wrapLines(NC.headline || "العنوان الرئيسي", maxTxtW, headMaxL);
+  const headLines = wrapText(ctx, NC.headline || "العنوان الرئيسي", maxTxtW, headMaxL);
   let headY = lineY + 60;
   for (const ln of headLines) { ctx.fillText(ln, W - M, headY); headY += headLH; }
   ctx.restore();
@@ -2124,7 +2128,7 @@ function drawNewsCard(ctx, NC, bgImg) {
       ctx.fillStyle = "rgba(255,255,255,.55)";
       ctx.textAlign = "right"; ctx.textBaseline = "top"; ctx.direction = "rtl";
       ctx.shadowColor = "rgba(0,0,0,.5)"; ctx.shadowBlur = 12;
-      const subLines = wrapLines(NC.subheadline, maxTxtW, subMax);
+      const subLines = wrapText(ctx, NC.subheadline, maxTxtW, subMax);
       let subY = afterHead + 24;
       for (const ln of subLines) { ctx.fillText(ln, W - M, subY); subY += subLH; }
       ctx.restore();
@@ -2145,6 +2149,124 @@ function drawNewsCard(ctx, NC, bgImg) {
   ctx.restore();
 }
 
+/* ── Long-text editorial card renderer ──────────────────────────────────── */
+function drawLongTextCard(ctx, NC, bgImg) {
+  const W = 1080, Rn = Math.round;
+  const isSquare = NC.cardSize === "square";
+  const isStory  = NC.cardSize === "story";
+  const H = isSquare ? 1080 : isStory ? 1920 : 1350;
+  const M = 72;
+
+  const GOLD   = "#c8a415";
+  const DARK   = "#0d0d16";
+  const BODY_C = "#2a2a38";
+  const MUTED  = "#72728a";
+
+  /* 1. White background */
+  ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, W, H);
+
+  /* 2. Image zone — top 38% (portrait/square) or 36% (story) */
+  const imgFrac = isStory ? 0.36 : 0.38;
+  const imgH    = Rn(H * imgFrac);
+
+  if (bgImg) {
+    const sc = Math.max(W / bgImg.naturalWidth, imgH / bgImg.naturalHeight);
+    const dw = bgImg.naturalWidth * sc, dh = bgImg.naturalHeight * sc;
+    ctx.save();
+    ctx.beginPath(); ctx.rect(0, 0, W, imgH); ctx.clip();
+    ctx.drawImage(bgImg, Rn((W - dw) / 2), 0, Rn(dw), Rn(dh));
+    ctx.restore();
+    /* Soft fade at bottom of image into white */
+    const fade = ctx.createLinearGradient(0, imgH - 90, 0, imgH);
+    fade.addColorStop(0, "rgba(255,255,255,0)");
+    fade.addColorStop(1, "#ffffff");
+    ctx.fillStyle = fade; ctx.fillRect(0, imgH - 90, W, 90);
+  } else {
+    ctx.fillStyle = "#ebedf0"; ctx.fillRect(0, 0, W, imgH);
+    ctx.save();
+    ctx.strokeStyle = "rgba(0,0,0,.06)"; ctx.lineWidth = 1.5;
+    for (let i = -imgH; i < W + imgH; i += 28) {
+      ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i + imgH, imgH); ctx.stroke();
+    }
+    ctx.restore();
+    ctx.save();
+    ctx.font = `600 ${Rn(28)}px 'Cairo','Tajawal',sans-serif`;
+    ctx.fillStyle = "rgba(0,0,0,.22)"; ctx.textAlign = "center";
+    ctx.textBaseline = "middle"; ctx.direction = "rtl";
+    ctx.fillText("↑ أضف صورة من لوحة التحكم", W / 2, imgH / 2);
+    ctx.restore();
+  }
+
+  /* 3. Text zone starts below image */
+  let curY = imgH + 44;
+
+  /* Category + Date row */
+  ctx.save();
+  ctx.textBaseline = "middle";
+  ctx.font = `700 ${Rn(24)}px 'Cairo','Tajawal',sans-serif`;
+  ctx.fillStyle = GOLD; ctx.textAlign = "right"; ctx.direction = "rtl";
+  ctx.fillText(NC.category || "رياضة", W - M, curY);
+  ctx.font = `400 ${Rn(22)}px 'Cairo','Tajawal',sans-serif`;
+  ctx.fillStyle = MUTED; ctx.textAlign = "left"; ctx.direction = "ltr";
+  ctx.fillText(String(NC.date || ""), M, curY);
+  ctx.restore();
+  curY += 38;
+
+  /* Gold separator */
+  const lineGrad = ctx.createLinearGradient(M, 0, W - M, 0);
+  lineGrad.addColorStop(0,    "rgba(200,164,21,0)");
+  lineGrad.addColorStop(0.05, GOLD);
+  lineGrad.addColorStop(0.95, GOLD);
+  lineGrad.addColorStop(1,    "rgba(200,164,21,0)");
+  ctx.fillStyle = lineGrad; ctx.fillRect(M, curY, W - M * 2, 2);
+  curY += 30;
+
+  /* 4. Headline */
+  const headSz  = Rn(W * (isStory ? 0.060 : 0.058));
+  const headLH  = Rn(headSz * 1.45);
+  const maxTxtW = W - M * 2;
+  ctx.save();
+  ctx.font = `900 ${headSz}px 'Cairo','Tajawal',sans-serif`;
+  ctx.fillStyle = DARK; ctx.textAlign = "right";
+  ctx.textBaseline = "top"; ctx.direction = "rtl";
+  const headLines = wrapText(ctx, NC.headline || "العنوان الرئيسي", maxTxtW, 3);
+  for (const ln of headLines) { ctx.fillText(ln, W - M, curY); curY += headLH; }
+  ctx.restore();
+  curY += 18;
+
+  /* Thin rule after headline */
+  ctx.fillStyle = "rgba(200,164,21,.28)";
+  ctx.fillRect(M, curY, W - M * 2, 1);
+  curY += 26;
+
+  /* 5. Body text */
+  const FOOT_H    = 90;
+  const textBottom = H - FOOT_H - 40;
+  if (NC.body && curY < textBottom) {
+    const bodySz  = isStory ? Rn(W * 0.036) : Rn(W * 0.033);
+    const bodyLH  = Rn(bodySz * 1.78);
+    const maxBody = Math.max(1, Math.floor((textBottom - curY) / bodyLH));
+    ctx.save();
+    ctx.font = `400 ${bodySz}px 'Cairo','Tajawal',sans-serif`;
+    ctx.fillStyle = BODY_C; ctx.textAlign = "right";
+    ctx.textBaseline = "top"; ctx.direction = "rtl";
+    const bodyLines = wrapText(ctx, NC.body, maxTxtW, maxBody);
+    for (const ln of bodyLines) { ctx.fillText(ln, W - M, curY); curY += bodyLH; }
+    ctx.restore();
+  }
+
+  /* 6. Footer */
+  const footY = H - FOOT_H;
+  ctx.save();
+  ctx.strokeStyle = "rgba(200,164,21,.28)"; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(M, footY); ctx.lineTo(W - M, footY); ctx.stroke();
+  ctx.font = `400 ${Rn(19)}px 'Cairo','Tajawal',sans-serif`;
+  ctx.fillStyle = MUTED; ctx.textAlign = "center";
+  ctx.textBaseline = "middle"; ctx.direction = "ltr";
+  ctx.fillText(NC.footer || "", W / 2, footY + FOOT_H / 2);
+  ctx.restore();
+}
+
 /* ── News Card Studio component ────────────────────────────────────────── */
 function NewsCardStudio({ onBack, theme, T }) {
   const isDark     = theme === "dark";
@@ -2154,17 +2276,28 @@ function NewsCardStudio({ onBack, theme, T }) {
     date:        "٢٤ مايو ٢٠٢٦",
     headline:    "عنوان الخبر الرياضي الرئيسي يُكتب هنا",
     subheadline: "تفاصيل وملخص الخبر يُكتبان في هذا الحقل",
+    body:        "اكتب نص الخبر الكامل هنا. يمكن أن يكون النص طويلاً ويمتد على عدة أسطر. يتم ضبط حجم الخط والتباعد تلقائياً حسب حجم البطاقة المختارة.",
     footer:      "osl.om  ·  @OmanLeague",
+    gradient:    "strong",
+    template:    "image",
+    cardSize:    "portrait",
   });
   const [ncBgImg, setNcBgImg] = useState(null);
   const UN = (k, v) => setNC(p => ({ ...p, [k]: v }));
 
+  /* Canvas height depends on template + cardSize */
+  const H_CANVAS = NC.template === "longtext"
+    ? (NC.cardSize === "square" ? 1080 : NC.cardSize === "story" ? 1920 : 1350)
+    : 1350;
+
   /* Render canvas whenever state changes */
   useEffect(() => {
     const canvas = ncRef.current; if (!canvas) return;
-    canvas.width = 1080; canvas.height = 1350;
-    drawNewsCard(canvas.getContext("2d"), NC, ncBgImg);
-  }, [NC, ncBgImg]);
+    canvas.width = 1080; canvas.height = H_CANVAS;
+    const ctx = canvas.getContext("2d");
+    if (NC.template === "longtext") drawLongTextCard(ctx, NC, ncBgImg);
+    else drawNewsCard(ctx, NC, ncBgImg);
+  }, [NC, ncBgImg, H_CANVAS]);
 
   /* Background image loader */
   const loadBg = useCallback(e => {
@@ -2184,8 +2317,11 @@ function NewsCardStudio({ onBack, theme, T }) {
     border:`1px solid ${T.inputBorder}`, background:T.inputBg,
     color:T.inputText, fontSize:13, fontFamily:"inherit", boxSizing:"border-box" };
 
-  /* Preview dimensions (display) */
-  const PH = 560, PW = Math.round(PH * 1080 / 1350); // 448 px wide
+  /* Preview dimensions (display pixels) */
+  const PH = 560, PW = Math.round(PH * 1080 / H_CANVAS);
+  const sizeLabel = NC.template === "longtext"
+    ? (NC.cardSize === "square" ? "1080 × 1080" : NC.cardSize === "story" ? "1080 × 1920" : "1080 × 1350")
+    : "1080 × 1350";
 
   return (
     <div dir="rtl" style={{
@@ -2223,39 +2359,102 @@ function NewsCardStudio({ onBack, theme, T }) {
           display:"flex", flexDirection:"column", gap:14,
         }}>
 
-          {/* Category */}
+          {/* ── Template selector ── */}
+          <div>
+            <div style={{fontSize:10, fontWeight:700, color:T.secTitle, marginBottom:6, letterSpacing:".04em"}}>نوع البطاقة</div>
+            <div style={{display:"flex", gap:6}}>
+              {[["image","بطاقة إخبارية"],["longtext","نص طويل"]].map(([val,lbl])=>(
+                <button key={val} onClick={()=>UN("template",val)} style={{
+                  flex:1, padding:"7px 4px", borderRadius:8, cursor:"pointer",
+                  fontSize:11, fontWeight:700,
+                  border:`1px solid ${NC.template===val ? T.accent : T.inputBorder}`,
+                  background: NC.template===val ? T.accent : T.btnBg,
+                  color: NC.template===val ? T.accentFg : T.btnText,
+                }}>{lbl}</button>
+              ))}
+            </div>
+          </div>
+
+          {/* ── Gradient options (image template only) ── */}
+          {NC.template === "image" && (
+            <div>
+              <div style={{fontSize:10, fontWeight:700, color:T.secTitle, marginBottom:6, letterSpacing:".04em"}}>نوع التدرج</div>
+              <div style={{display:"flex", gap:6}}>
+                {[["strong","غامق"],["soft","ناعم"],["none","بدون"]].map(([val,lbl])=>(
+                  <button key={val} onClick={()=>UN("gradient",val)} style={{
+                    flex:1, padding:"6px 4px", borderRadius:8, cursor:"pointer",
+                    fontSize:11, fontWeight:700,
+                    border:`1px solid ${NC.gradient===val ? T.accent : T.inputBorder}`,
+                    background: NC.gradient===val ? T.accent : T.btnBg,
+                    color: NC.gradient===val ? T.accentFg : T.btnText,
+                  }}>{lbl}</button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── Card size (long text only) ── */}
+          {NC.template === "longtext" && (
+            <div>
+              <div style={{fontSize:10, fontWeight:700, color:T.secTitle, marginBottom:6, letterSpacing:".04em"}}>حجم البطاقة</div>
+              <div style={{display:"flex", gap:6}}>
+                {[["portrait","عمودي"],["square","مربع"],["story","ستوري"]].map(([val,lbl])=>(
+                  <button key={val} onClick={()=>UN("cardSize",val)} style={{
+                    flex:1, padding:"6px 4px", borderRadius:8, cursor:"pointer",
+                    fontSize:11, fontWeight:700,
+                    border:`1px solid ${NC.cardSize===val ? T.accent : T.inputBorder}`,
+                    background: NC.cardSize===val ? T.accent : T.btnBg,
+                    color: NC.cardSize===val ? T.accentFg : T.btnText,
+                  }}>{lbl}</button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── Category ── */}
           <div>
             <div style={{fontSize:10, fontWeight:700, color:T.secTitle, marginBottom:5, letterSpacing:".04em"}}>التصنيف</div>
             <input value={NC.category} onChange={e=>UN("category",e.target.value)} style={inp}/>
           </div>
 
-          {/* Date */}
+          {/* ── Date ── */}
           <div>
             <div style={{fontSize:10, fontWeight:700, color:T.secTitle, marginBottom:5, letterSpacing:".04em"}}>التاريخ</div>
             <input value={NC.date} onChange={e=>UN("date",e.target.value)} style={inp}/>
           </div>
 
-          {/* Headline */}
+          {/* ── Headline ── */}
           <div>
             <div style={{fontSize:10, fontWeight:700, color:T.secTitle, marginBottom:5, letterSpacing:".04em"}}>العنوان الرئيسي</div>
             <textarea value={NC.headline} onChange={e=>UN("headline",e.target.value)} rows={3}
               style={{...inp, resize:"vertical"}}/>
           </div>
 
-          {/* Subheadline */}
-          <div>
-            <div style={{fontSize:10, fontWeight:700, color:T.secTitle, marginBottom:5, letterSpacing:".04em"}}>العنوان الفرعي</div>
-            <textarea value={NC.subheadline} onChange={e=>UN("subheadline",e.target.value)} rows={3}
-              style={{...inp, resize:"vertical"}}/>
-          </div>
+          {/* ── Subheadline (image template only) ── */}
+          {NC.template === "image" && (
+            <div>
+              <div style={{fontSize:10, fontWeight:700, color:T.secTitle, marginBottom:5, letterSpacing:".04em"}}>العنوان الفرعي</div>
+              <textarea value={NC.subheadline} onChange={e=>UN("subheadline",e.target.value)} rows={3}
+                style={{...inp, resize:"vertical"}}/>
+            </div>
+          )}
 
-          {/* Footer text */}
+          {/* ── Body text (long text template only) ── */}
+          {NC.template === "longtext" && (
+            <div>
+              <div style={{fontSize:10, fontWeight:700, color:T.secTitle, marginBottom:5, letterSpacing:".04em"}}>نص الخبر</div>
+              <textarea value={NC.body} onChange={e=>UN("body",e.target.value)} rows={8}
+                style={{...inp, resize:"vertical", lineHeight:1.6}}/>
+            </div>
+          )}
+
+          {/* ── Footer text ── */}
           <div>
             <div style={{fontSize:10, fontWeight:700, color:T.secTitle, marginBottom:5, letterSpacing:".04em"}}>الموقع / النص السفلي</div>
             <input value={NC.footer} onChange={e=>UN("footer",e.target.value)} style={inp}/>
           </div>
 
-          {/* Background image */}
+          {/* ── Background image ── */}
           <div>
             <div style={{fontSize:10, fontWeight:700, color:T.secTitle, marginBottom:5, letterSpacing:".04em"}}>صورة الخلفية</div>
             <label style={{
@@ -2288,7 +2487,7 @@ function NewsCardStudio({ onBack, theme, T }) {
         }}>
           <div style={{fontSize:10, fontWeight:600, letterSpacing:".06em",
             color: isDark ? "rgba(255,255,255,.22)" : "rgba(0,0,0,.28)"}}>
-            1080 × 1350 px
+            {sizeLabel} px
           </div>
           <canvas ref={ncRef} style={{
             display:"block", width:PW, height:PH,
