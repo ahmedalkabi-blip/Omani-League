@@ -234,13 +234,8 @@ function createEngine(ctx, W, H) {
       ctx.beginPath(); ctx.arc(cx, cy, face - 1, 0, Math.PI * 2); ctx.clip();
       ctx.drawImage(img, tb.x, tb.y, tb.w, tb.h, R(cx - dw / 2), R(cy - dh / 2), dw, dh);
       ctx.restore();
-    } else {
-      ctx.save();
-      ctx.font = `${R(face * 0.85)}px serif`;
-      ctx.textAlign = "center"; ctx.textBaseline = "middle";
-      ctx.fillText(emoji, cx, cy);
-      ctx.restore();
     }
+    // No emoji fallback — badge face stays blank when no logo image is loaded
   }
 
   return { txt, txtStroke, rrect, circ, line, hexPattern, darken, drawBackground, drawLogo };
@@ -1065,15 +1060,18 @@ function Accordion({title,defaultOpen=false,children,accentColor,badge}) {
 /* ═══════════════════════════════════════════════════════════════════════════
    CLUB LOGO IMAGE — sidebar use only (canvas uses drawLogo in the engine)
 ═══════════════════════════════════════════════════════════════════════════ */
-function ClubLogoImg({ src, emoji, alt, size = 32 }) {
+function ClubLogoImg({ src, alt, size = 32 }) {
   const [err, setErr] = useState(false);
   const inner = Math.round(size * 0.80);  // 20 % padding inside the box
   if (!src || err) {
+    // No logo available — render a neutral placeholder circle, no emoji
     return (
       <span style={{
         display:"flex", alignItems:"center", justifyContent:"center",
-        width:size, height:size, fontSize:Math.round(size * 0.58), lineHeight:1,
-      }}>{emoji}</span>
+        width:size, height:size,
+        borderRadius:"50%", background:"rgba(128,128,128,.18)",
+        flexShrink:0,
+      }}/>
     );
   }
   return (
@@ -1132,7 +1130,7 @@ function TeamPanel({side, S, U, onLogo, onClubLogo}) {
                 background:on?selBg:T.btnBg,
                 transition:"all .15s",
               }}>
-              <ClubLogoImg src={c.logo} emoji={c.e} alt={c.ar} size={32}/>
+              <ClubLogoImg src={c.logo} alt={c.ar} size={32}/>
             </button>
           );
         })}
@@ -1470,7 +1468,7 @@ function Designer({ onBack, theme, onThemeToggle }) {
                   fontSize:11,fontWeight:700,background:T.stagePill,
                   border:`1px solid ${T.stagePillBorder}`,color:T.text,
                 }}>
-                  <ClubLogoImg src={item.logo} emoji={item.e} alt={item.ar} size={20}/>
+                  <ClubLogoImg src={item.logo} alt={item.ar} size={20}/>
                   {item.ar}
                 </div>
               ):(
