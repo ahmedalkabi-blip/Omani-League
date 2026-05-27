@@ -587,149 +587,239 @@ function renderGoal(ctx, S, hImg, aImg, bgImg, goalPlayerImg) {
   const clubImg  = side === "h" ? hImg : aImg;
   const club     = getClub(S, side);
 
-  /* ── 1. SOLID BACKGROUND ─────────────────────────────────────────────── */
-  ctx.fillStyle = bgCol; ctx.fillRect(0, 0, W, H);
+  /* ── 1. SOLID BACKGROUND ─────────────────────────────────────────── */
+  ctx.fillStyle = bgCol;
+  ctx.fillRect(0, 0, W, H);
 
-  /* ── 2. GHOST PLAYER (blurred, very faint, depth layer) ─────────────── */
-  if (goalPlayerImg) {
-    ctx.save();
-    ctx.filter = `blur(${R(W * 0.012)}px)`;
-    ctx.globalAlpha = 0.09;
-    const gh = H, gs = gh / (goalPlayerImg.naturalHeight || 1);
-    const gw = R((goalPlayerImg.naturalWidth || 1) * gs);
-    ctx.drawImage(goalPlayerImg, R((W - gw) * 0.5), 0, gw, gh);
-    ctx.restore();
-  }
-
-  /* ── 3. LARGE REPEATED "GOAL" TEXT — typographic background layer ───── */
-  const gFontSz = R(W * 0.285);
+  /* ── 2. RADIAL BURST — speed lines from upper-center ────────────── */
+  const burstCX = W / 2, burstCY = H * 0.36;
+  const lineCount = 32;
   ctx.save();
-  ctx.font = `900 ${gFontSz}px 'Cairo','Tajawal',sans-serif`;
+  for (let i = 0; i < lineCount; i++) {
+    const angle = (i / lineCount) * Math.PI * 2;
+    const len   = Math.max(W, H) * 1.5;
+    const lw    = i % 2 === 0 ? W * 0.018 : W * 0.007;
+    ctx.beginPath();
+    ctx.moveTo(burstCX, burstCY);
+    ctx.lineTo(burstCX + Math.cos(angle) * len, burstCY + Math.sin(angle) * len);
+    ctx.strokeStyle = titleCol;
+    ctx.globalAlpha  = i % 2 === 0 ? 0.055 : 0.028;
+    ctx.lineWidth    = R(lw);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  /* ── 3. BACKGROUND "GOAL" TYPOGRAPHY — strong typographic wallpaper ── */
+  const gFontSz = R(W * 0.31);
+  ctx.save();
+  ctx.font = `900 italic ${gFontSz}px 'Cairo','Tajawal',sans-serif`;
   ctx.textBaseline = "middle"; ctx.textAlign = "left"; ctx.direction = "ltr";
   const measW  = ctx.measureText("GOAL").width || (gFontSz * 3.2);
-  const scaleX = (W * 1.05) / measW;           // stretch text to fill 105% canvas
-  const rowH   = H * 0.172;
+  const scaleX = (W * 1.04) / measW;
+  const rowH   = H * 0.165;
   const rows   = Math.ceil(H / rowH) + 2;
   ctx.fillStyle = titleCol;
   for (let i = 0; i < rows; i++) {
     ctx.save();
-    ctx.globalAlpha = i % 2 === 0 ? 0.20 : 0.13;
+    ctx.globalAlpha = i % 2 === 0 ? 0.38 : 0.20;
     ctx.scale(scaleX, 1);
-    ctx.fillText("GOAL", (-W * 0.025) / scaleX, H * 0.055 + i * rowH);
+    ctx.fillText("GOAL", (-W * 0.02) / scaleX, H * 0.04 + i * rowH);
     ctx.restore();
   }
   ctx.restore();
 
-  /* ── 4. DIAGONAL ACCENT STRIPES (left & right edges) ────────────────── */
-  const sY   = H * 0.38;
-  const sLen = W * 0.062;
-  const sDY  = H * 0.031;
-  const sGap = H * 0.040;
-  const sCnt = 4;
-  ctx.save();
-  ctx.strokeStyle = titleCol; ctx.lineWidth = R(W * 0.0046);
-  ctx.lineCap = "round"; ctx.globalAlpha = 0.62;
-  for (let i = 0; i < sCnt; i++) {
-    const yo = (i - (sCnt - 1) / 2) * sGap;
-    ctx.beginPath();
-    ctx.moveTo(R(W * 0.040),        R(sY + yo + sDY / 2));
-    ctx.lineTo(R(W * 0.040 + sLen), R(sY + yo - sDY / 2));
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(R(W * 0.960),        R(sY + yo + sDY / 2));
-    ctx.lineTo(R(W * 0.960 - sLen), R(sY + yo - sDY / 2));
-    ctx.stroke();
-  }
-  ctx.restore();
+  /* ── 4. DYNAMIC DIAGONAL STRIPE GROUPS (each edge) ──────────────── */
+  const drawStripe = (x1, y1, x2, y2, col, alpha, lw) => {
+    ctx.save();
+    ctx.strokeStyle = col; ctx.globalAlpha = alpha;
+    ctx.lineWidth = R(lw); ctx.lineCap = "butt";
+    ctx.beginPath(); ctx.moveTo(R(x1), R(y1)); ctx.lineTo(R(x2), R(y2));
+    ctx.stroke(); ctx.restore();
+  };
+  // Left edge — 5 stripes fanning inward
+  const leftStripes = [
+    [0, H*0.28, W*0.28, H*0.54],
+    [0, H*0.33, W*0.22, H*0.58],
+    [0, H*0.38, W*0.16, H*0.62],
+    [0, H*0.43, W*0.10, H*0.65],
+    [0, H*0.48, W*0.05, H*0.68],
+  ];
+  // Right edge — mirror
+  const rightStripes = leftStripes.map(([,y1,,y2]) => [W, y1, W*0.72, y2]);
+  [...leftStripes, ...rightStripes].forEach(([x1,y1,x2,y2], idx) => {
+    drawStripe(x1, y1, x2, y2, labelBg, idx < 3 ? 0.70 : 0.40, W * (idx < 2 ? 0.0055 : 0.0035));
+  });
+  // Thin white echo stripes slightly offset
+  leftStripes.slice(0, 3).forEach(([x1,y1,x2,y2]) => {
+    drawStripe(x1, y1 - H*0.018, x2, y2 - H*0.018, titleCol, 0.30, W * 0.0018);
+  });
+  rightStripes.slice(0, 3).forEach(([x1,y1,x2,y2]) => {
+    drawStripe(x1, y1 - H*0.018, x2, y2 - H*0.018, titleCol, 0.30, W * 0.0018);
+  });
 
-  /* ── 5. FOREGROUND PLAYER IMAGE — dominant central element ──────────── */
+  /* ── 5. PLAYER IMAGE — hero element, edge-blended into bg ───────── */
   if (goalPlayerImg) {
     const ph = R(H * 0.88);
     const ps = ph / (goalPlayerImg.naturalHeight || 1);
     const pw = R((goalPlayerImg.naturalWidth || 1) * ps);
-    ctx.drawImage(goalPlayerImg, R((W - pw) / 2), R(H * 0.06), pw, ph);
+    const px = R((W - pw) / 2);
+    const py = R(H * 0.04);
+
+    ctx.drawImage(goalPlayerImg, px, py, pw, ph);
+
+    // Left edge fade: bgCol → transparent over inner 36% of image width
+    const blendW = R(pw * 0.36);
+    const lGrad = ctx.createLinearGradient(px, 0, px + blendW, 0);
+    lGrad.addColorStop(0,   bgCol);
+    lGrad.addColorStop(0.6, bgCol + "88");
+    lGrad.addColorStop(1,   bgCol + "00");
+    ctx.fillStyle = lGrad;
+    ctx.fillRect(px, py, blendW, ph);
+
+    // Right edge fade
+    const rGrad = ctx.createLinearGradient(px + pw - blendW, 0, px + pw, 0);
+    rGrad.addColorStop(0,   bgCol + "00");
+    rGrad.addColorStop(0.4, bgCol + "88");
+    rGrad.addColorStop(1,   bgCol);
+    ctx.fillStyle = rGrad;
+    ctx.fillRect(px + pw - blendW, py, blendW, ph);
+
+    // Top edge fade
+    const topH = R(ph * 0.12);
+    const tGrad = ctx.createLinearGradient(0, py, 0, py + topH);
+    tGrad.addColorStop(0, bgCol);
+    tGrad.addColorStop(1, bgCol + "00");
+    ctx.fillStyle = tGrad;
+    ctx.fillRect(px, py, pw, topH);
   } else {
-    const pR = R(W * 0.18);
-    const pCY = R(H * 0.40);
-    e.circ(W / 2, pCY, pR, `${bgCol}bb`, `${titleCol}88`, R(W * 0.004));
-    ctx.save(); ctx.globalAlpha = 0.55;
-    e.txt("⬆️ رفع صورة اللاعب", W / 2, pCY, R(W * 0.036), titleCol, "700");
+    // Placeholder silhouette
+    const pR = R(W * 0.16);
+    const pCY = R(H * 0.38);
+    e.circ(W / 2, pCY, pR, `${titleCol}11`, `${titleCol}33`, R(W * 0.004));
+    ctx.save(); ctx.globalAlpha = 0.40;
+    e.txt("⬆ رفع صورة اللاعب", W / 2, pCY, R(W * 0.034), titleCol, "700");
     ctx.restore();
   }
 
-  /* ── 6. DARK FADE — bottom section ──────────────────────────────────── */
-  const fadeY = R(H * 0.72);
-  const fade  = ctx.createLinearGradient(0, fadeY, 0, H);
+  /* ── 6. BOTTOM DARK OVERLAY ──────────────────────────────────────── */
+  const fadeStart = H * 0.50;
+  const fade = ctx.createLinearGradient(0, fadeStart, 0, H);
   fade.addColorStop(0,    "rgba(0,0,0,0)");
-  fade.addColorStop(0.28, "rgba(0,0,0,.52)");
-  fade.addColorStop(0.65, "rgba(0,0,0,.78)");
-  fade.addColorStop(1,    "rgba(0,0,0,.90)");
-  ctx.fillStyle = fade; ctx.fillRect(0, fadeY, W, H - fadeY);
+  fade.addColorStop(0.20, "rgba(0,0,0,.40)");
+  fade.addColorStop(0.55, "rgba(0,0,0,.78)");
+  fade.addColorStop(0.80, "rgba(0,0,0,.90)");
+  fade.addColorStop(1,    "rgba(0,0,0,.96)");
+  ctx.fillStyle = fade;
+  ctx.fillRect(0, R(fadeStart), W, H - R(fadeStart));
 
-  /* ── 7. SCORER LABEL ─────────────────────────────────────────────────── */
-  const lblH  = R(H * 0.058);
-  const lblW  = R(W * 0.56);
-  const lblCY = R(H * 0.375);
-  const lblX  = R((W - lblW) / 2);
-  const lblY  = R(lblCY - lblH / 2);
-  const pad   = R(lblH * 0.55);
+  /* ── 7. BIG FOREGROUND "GOAL!" TITLE ─────────────────────────────── */
+  const bigSz = R(W * 0.192);
+  ctx.save();
+  ctx.font = `900 italic ${bigSz}px 'Cairo','Tajawal',sans-serif`;
+  ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.direction = "ltr";
+  // Thick colored stroke for punch
+  ctx.lineWidth   = R(W * 0.013);
+  ctx.strokeStyle = labelBg;
+  ctx.lineJoin    = "round";
+  ctx.strokeText("GOAL!", W / 2, R(H * 0.735));
+  ctx.fillStyle = titleCol;
+  ctx.fillText("GOAL!", W / 2, R(H * 0.735));
+  ctx.restore();
 
-  e.rrect(lblX, lblY, lblW, lblH, lblH / 2, labelBg, null);
+  /* ── 8. SCORER PILL — compact, bottom area ───────────────────────── */
+  const sNum      = S.goalShirtNumber;
+  const scorerStr = S.goalScorerName || "اسم اللاعب";
+  const pillH     = R(H * 0.042);
+  const rowCY     = R(H * 0.838);
+  const pPad      = R(pillH * 0.50);
 
-  const sNum = S.goalShirtNumber;
+  // Measure scorer name for dynamic width
+  ctx.save();
+  ctx.font = `700 ${R(pillH * 0.48)}px 'Cairo','Tajawal',sans-serif`;
+  ctx.direction = "ltr"; ctx.textAlign = "left";
+  const nameTextW = ctx.measureText(scorerStr).width;
+  ctx.restore();
+
+  const numBlockW = sNum ? R(pillH * 0.88) : 0;
+  const sepBlockW = sNum ? R(W * 0.003)    : 0;
+  const pillW     = R(pPad + numBlockW + sepBlockW + nameTextW + pPad);
+  const pillX     = R((W - pillW) / 2);
+  const pillY     = R(rowCY - pillH / 2);
+
+  // Subtle shadow behind pill
+  ctx.save();
+  ctx.shadowColor = "rgba(0,0,0,.5)"; ctx.shadowBlur = R(W * 0.018); ctx.shadowOffsetY = R(H * 0.004);
+  e.rrect(pillX, pillY, pillW, pillH, pillH / 2, labelBg, null);
+  ctx.restore();
+
+  // Shirt number
+  let curX = pillX + pPad;
   if (sNum) {
     ctx.save();
-    ctx.font = `900 ${R(lblH * 0.50)}px 'Cairo','Tajawal',sans-serif`;
+    ctx.font = `900 ${R(pillH * 0.52)}px 'Cairo','Tajawal',sans-serif`;
     ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.direction = "ltr";
     ctx.fillStyle = labelCol;
-    ctx.fillText(String(sNum), lblX + pad, lblCY);
+    ctx.fillText(String(sNum), R(curX + numBlockW / 2), rowCY);
     ctx.restore();
-    e.rrect(lblX + R(pad * 1.90), lblY + R(lblH * 0.22), R(W * 0.0025), R(lblH * 0.56), 1, `${labelCol}44`, null);
+    curX += numBlockW;
+    // Thin separator
+    ctx.save();
+    ctx.fillStyle = `${labelCol}50`;
+    ctx.fillRect(R(curX), R(rowCY - pillH * 0.28), R(sepBlockW), R(pillH * 0.56));
+    ctx.restore();
+    curX += sepBlockW;
   }
-  const nameX1 = sNum ? lblX + R(pad * 2.55) : lblX + R(lblH * 0.4);
-  const nameX2 = lblX + lblW - R(lblH * 0.4);
-  e.txt(
-    S.goalScorerName || "اسم اللاعب",
-    (nameX1 + nameX2) / 2, lblCY,
-    R(lblH * 0.43), labelCol, "900", "center", nameX2 - nameX1
-  );
+  // Scorer name
+  ctx.save();
+  ctx.font = `700 ${R(pillH * 0.48)}px 'Cairo','Tajawal',sans-serif`;
+  ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.direction = "ltr";
+  ctx.fillStyle = labelCol;
+  ctx.fillText(scorerStr, R(curX), rowCY);
+  ctx.restore();
 
-  /* ── 8. MINUTE BADGE ─────────────────────────────────────────────────── */
-  const minR  = R(lblH * 0.60);
-  const minCX = lblX + lblW + R(lblH * 0.30) + minR;
-  e.circ(minCX, lblCY, minR, titleCol, null);
-  e.txt((S.goalMinute || "0") + "'", minCX, lblCY, R(lblH * 0.37), bgCol, "900");
+  /* ── 9. MINUTE BADGE — right of pill ────────────────────────────── */
+  const minR  = R(pillH * 0.58);
+  const minCX = R(pillX + pillW + R(pillH * 0.30) + minR);
+  // Glow halo
+  ctx.save();
+  ctx.beginPath(); ctx.arc(minCX, rowCY, minR + R(W * 0.004), 0, Math.PI * 2);
+  ctx.fillStyle = `${labelBg}44`; ctx.fill(); ctx.restore();
+  e.circ(minCX, rowCY, minR, titleCol, null);
+  e.txt((S.goalMinute || "0") + "'", minCX, rowCY, R(pillH * 0.38), bgCol, "900");
 
-  /* ── 9. CLUB LOGO + SCORE ────────────────────────────────────────────── */
-  const logoR = R(W * 0.058);
-  const logoX = R(W * 0.80);
-  const logoY = R(H * 0.805);
-  e.drawLogo(clubImg, club.emoji, logoX, logoY, logoR, club.p, club.s);
+  /* ── 10. CLUB LOGO — prominent, centered below scorer row ────────── */
+  const logoR  = R(W * 0.086);
+  const logoCX = R(W / 2);
+  const logoCY = R(H * 0.918);
+  // Gold outer ring
+  e.circ(logoCX, logoCY, logoR + R(W * 0.012), labelBg, null);
+  // Dark gap ring
+  e.circ(logoCX, logoCY, logoR + R(W * 0.005), "rgba(0,0,0,.70)", null);
+  e.drawLogo(clubImg, club.emoji, logoCX, logoCY, logoR, club.p, club.s);
 
-  // Small score pill to the left of the logo
-  const scoreStr = (S.hScore || "0") + " – " + (S.aScore || "0");
-  const spW = R(W * 0.20), spH = R(H * 0.042);
-  const spX = R(logoX - logoR - R(W * 0.04) - spW);
-  const spY = R(logoY - spH / 2);
-  e.rrect(spX, spY, spW, spH, spH / 2, "rgba(0,0,0,.45)", `${titleCol}33`, 1);
-  e.txt(scoreStr, spX + spW / 2, logoY, R(spH * 0.52), titleCol, "900");
+  // Score — tiny, to the right, very secondary
+  const scoreStr = `${S.hScore || "0"} – ${S.aScore || "0"}`;
+  ctx.save();
+  ctx.font = `600 ${R(H * 0.018)}px 'Cairo','Tajawal',sans-serif`;
+  ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.direction = "ltr";
+  ctx.fillStyle = `${titleCol}50`;
+  ctx.fillText(scoreStr, R(logoCX + logoR + R(W * 0.030)), logoCY);
+  ctx.restore();
 
-  /* ── 10. TOP CORNER PILLS ────────────────────────────────────────────── */
+  /* ── 11. TOP CORNER PILLS ─────────────────────────────────────────── */
   if (S.showDate) {
-    e.rrect(36, 28, 220, 44, 8, "rgba(0,0,0,.35)", `${titleCol}44`, 1);
+    e.rrect(36, 28, 220, 44, 8, "rgba(0,0,0,.38)", `${titleCol}33`, 1);
     e.txt(S.date, 146, 50, 18, titleCol, "600");
   }
   if (S.showSponsor) {
-    e.rrect(W - 256, 28, 220, 44, 8, "rgba(0,0,0,.35)", `${titleCol}44`, 1);
-    e.txt(S.compEn, W - 146, 50, 15, `${titleCol}bb`, "600");
+    e.rrect(W - 256, 28, 220, 44, 8, "rgba(0,0,0,.38)", `${titleCol}33`, 1);
+    e.txt(S.compEn, W - 146, 50, 15, `${titleCol}aa`, "600");
   }
 
-  /* ── 11. FOOTER ──────────────────────────────────────────────────────── */
+  /* ── 12. FOOTER ───────────────────────────────────────────────────── */
   if (S.showBranding) {
-    const fy = R(H * 0.916);
-    e.line(80, fy, W - 80, fy, `${titleCol}22`, 1);
-    e.txt(S.comp,   W / 2, fy + 20, 19, `${titleCol}66`, "600");
-    e.txt(S.footer, W / 2, fy + 52, 15, `${titleCol}44`, "400");
+    const fy = R(H * 0.957);
+    e.txt(S.footer, W / 2, fy, 14, `${titleCol}44`, "400");
   }
 }
 
