@@ -2045,20 +2045,20 @@ function drawNewsCard(ctx, NC, bgImg) {
   }
 
   /* ── 2. GRADIENT OVERLAYS ──────────────────────────────────────────── */
-  /* Top: darken for category + date readability */
-  const topOv = ctx.createLinearGradient(0, 0, 0, H * 0.24);
-  topOv.addColorStop(0, "rgba(0,0,0,.70)");
+  /* Top: lightest possible touch — just enough for badge/date legibility */
+  const topOv = ctx.createLinearGradient(0, 0, 0, H * 0.22);
+  topOv.addColorStop(0, "rgba(0,0,0,.55)");
   topOv.addColorStop(1, "rgba(0,0,0,0)");
-  ctx.fillStyle = topOv; ctx.fillRect(0, 0, W, Rn(H * 0.24));
+  ctx.fillStyle = topOv; ctx.fillRect(0, 0, W, Rn(H * 0.22));
 
-  /* Bottom: from 44% → full-black by 76%, stays opaque to footer */
-  const botOv = ctx.createLinearGradient(0, H * 0.44, 0, H * 0.76);
+  /* Bottom: from 50% → near-black by 80%, smooth long fade */
+  const botOv = ctx.createLinearGradient(0, H * 0.50, 0, H * 0.80);
   botOv.addColorStop(0, "rgba(0,0,0,0)");
   botOv.addColorStop(1, "rgba(0,0,0,.97)");
-  ctx.fillStyle = botOv; ctx.fillRect(0, Rn(H * 0.44), W, Rn(H * 0.32));
-  /* Solid black from 76% onward */
+  ctx.fillStyle = botOv; ctx.fillRect(0, Rn(H * 0.50), W, Rn(H * 0.30));
+  /* Solid from 80% onward */
   ctx.fillStyle = "rgba(0,0,0,.97)";
-  ctx.fillRect(0, Rn(H * 0.76), W, H - Rn(H * 0.76));
+  ctx.fillRect(0, Rn(H * 0.80), W, H - Rn(H * 0.80));
 
   /* ── 3. CATEGORY BADGE — top-right ────────────────────────────────── */
   const cat = NC.category || "رياضة";
@@ -2086,14 +2086,14 @@ function drawNewsCard(ctx, NC, bgImg) {
   ctx.restore();
 
   /* ── 5. GOLD ACCENT LINE — transition from image to text zone ──────── */
-  const lineY = Rn(H * 0.616);
+  const lineY = Rn(H * 0.630);
   const lineGrad = ctx.createLinearGradient(M, 0, W - M, 0);
   lineGrad.addColorStop(0,    "rgba(232,200,74,0)");
-  lineGrad.addColorStop(0.06, "#e8c84a");
-  lineGrad.addColorStop(0.94, "#e8c84a");
+  lineGrad.addColorStop(0.08, "rgba(232,200,74,.80)");
+  lineGrad.addColorStop(0.92, "rgba(232,200,74,.80)");
   lineGrad.addColorStop(1,    "rgba(232,200,74,0)");
   ctx.fillStyle = lineGrad;
-  ctx.fillRect(M, lineY, W - M * 2, 3);
+  ctx.fillRect(M, lineY, W - M * 2, 2);
 
   /* ── 6. HEADLINE — large, bold, RTL wrapped ────────────────────────── */
   const headSz   = Rn(W * 0.058);        // ~63 px — professional, not overcrowded
@@ -2107,7 +2107,7 @@ function drawNewsCard(ctx, NC, bgImg) {
   ctx.textAlign = "right"; ctx.textBaseline = "top"; ctx.direction = "rtl";
   ctx.shadowColor = "rgba(0,0,0,.7)"; ctx.shadowBlur = 22;
   const headLines = wrapLines(NC.headline || "العنوان الرئيسي", maxTxtW, headMaxL);
-  let headY = lineY + 52;
+  let headY = lineY + 60;
   for (const ln of headLines) { ctx.fillText(ln, W - M, headY); headY += headLH; }
   ctx.restore();
   const afterHead = headY;
@@ -2125,7 +2125,7 @@ function drawNewsCard(ctx, NC, bgImg) {
       ctx.textAlign = "right"; ctx.textBaseline = "top"; ctx.direction = "rtl";
       ctx.shadowColor = "rgba(0,0,0,.5)"; ctx.shadowBlur = 12;
       const subLines = wrapLines(NC.subheadline, maxTxtW, subMax);
-      let subY = afterHead + 36;
+      let subY = afterHead + 24;
       for (const ln of subLines) { ctx.fillText(ln, W - M, subY); subY += subLH; }
       ctx.restore();
     }
@@ -2138,8 +2138,8 @@ function drawNewsCard(ctx, NC, bgImg) {
   ctx.strokeStyle = "rgba(232,200,74,.35)"; ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(M, footY); ctx.lineTo(W - M, footY); ctx.stroke();
   /* Website / footer text */
-  ctx.font = `400 ${Rn(21)}px 'Cairo','Tajawal',sans-serif`;
-  ctx.fillStyle = "rgba(255,255,255,.30)";
+  ctx.font = `400 ${Rn(19)}px 'Cairo','Tajawal',sans-serif`;
+  ctx.fillStyle = "rgba(255,255,255,.28)";
   ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.direction = "ltr";
   ctx.fillText(NC.footer || "", W / 2, footY + FOOT_H / 2);
   ctx.restore();
