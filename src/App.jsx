@@ -262,10 +262,14 @@ function getClub(S, side) {
   };
 }
 
-function drawTopStrip(e, S, W) {
+function drawTopStrip(e, S, W, ctx) {
   if (S.showDate) {
-    e.rrect(36,24,220,40,4,"rgba(0,0,0,.38)","rgba(255,255,255,.1)",1);
-    e.txt(S.date,146,44,20,"rgba(255,255,255,.8)","600");
+    ctx.save();
+    ctx.shadowColor   = "rgba(0,0,0,.75)";
+    ctx.shadowBlur    = 12;
+    ctx.shadowOffsetY = 2;
+    e.txt(String(S.date).toUpperCase(), 44, 48, 18, "rgba(255,255,255,.95)", "700", "left");
+    ctx.restore();
   }
   if (S.showSponsor) {
     e.rrect(W-256,24,220,40,4,"rgba(0,0,0,.38)","rgba(255,255,255,.1)",1);
@@ -386,7 +390,7 @@ function renderMatchday(ctx, S, hImg, aImg, bgImg) {
   const sz=CANVAS_SIZES[S.canvasSize], W=sz.w, H=sz.h;
   const e=createEngine(ctx,W,H);
   e.drawBackground(S,bgImg);
-  drawTopStrip(e,S,W);
+  drawTopStrip(e,S,W,ctx);
 
   const { LR, hX, aX, botY } = logoRow(W, H);
   drawBottomOverlay(ctx, S, W, H, botY);
@@ -415,7 +419,7 @@ function renderFulltime(ctx, S, hImg, aImg, bgImg) {
 
   /* Background only — no extra overlay added here; user controls darkness */
   e.drawBackground(S, bgImg);
-  drawTopStrip(e, S, W);
+  drawTopStrip(e, S, W, ctx);
 
   /* ── League / comp name ── */
   const leagueY = yAt(H, 0.575);
@@ -486,7 +490,7 @@ function renderHalftime(ctx, S, hImg, aImg, bgImg) {
   const sz = CANVAS_SIZES[S.canvasSize], W = sz.w, H = sz.h;
   const e  = createEngine(ctx, W, H);
   e.drawBackground(S, bgImg);
-  drawTopStrip(e, S, W);
+  drawTopStrip(e, S, W, ctx);
 
   const { hX, aX, botY } = logoRow(W, H);
   const LR = R(W * 0.058);          // slightly smaller than other templates
@@ -549,7 +553,7 @@ function renderNextMatch(ctx, S, hImg, aImg, bgImg) {
   const sz=CANVAS_SIZES[S.canvasSize], W=sz.w, H=sz.h;
   const e=createEngine(ctx,W,H);
   e.drawBackground(S,bgImg);
-  drawTopStrip(e,S,W);
+  drawTopStrip(e,S,W,ctx);
 
   const { LR, hX, aX, botY } = logoRow(W, H);
   drawBottomOverlay(ctx, S, W, H, botY);
@@ -809,10 +813,14 @@ function renderGoal(ctx, S, hImg, aImg, bgImg, goalPlayerImg) {
     "rgba(0,0,0,.42)", `${titleCol}22`, 1);
   e.txt(scoreStr, spX + spW / 2, logoCY, R(spH * 0.48), `${titleCol}60`, "700");
 
-  /* ── 11. TOP CORNER PILLS ─────────────────────────────────────────── */
+  /* ── 11. TOP STRIP ───────────────────────────────────────────────── */
   if (S.showDate) {
-    e.rrect(36, 28, 220, 44, 8, "rgba(0,0,0,.38)", `${titleCol}33`, 1);
-    e.txt(S.date, 146, 50, 18, titleCol, "600");
+    ctx.save();
+    ctx.shadowColor   = "rgba(0,0,0,.80)";
+    ctx.shadowBlur    = 12;
+    ctx.shadowOffsetY = 2;
+    e.txt(String(S.date).toUpperCase(), 44, 48, 18, `${titleCol}f2`, "700", "left");
+    ctx.restore();
   }
   if (S.showSponsor) {
     e.rrect(W - 256, 28, 220, 44, 8, "rgba(0,0,0,.38)", `${titleCol}33`, 1);
@@ -838,7 +846,7 @@ function renderMOTM(ctx, S, hImg, aImg, bgImg) {
     ctx.fillStyle=deepOv; ctx.fillRect(0,0,W,H);
   }
 
-  drawTopStrip(e,S,W);
+  drawTopStrip(e,S,W,ctx);
   drawCompPill(e,S,W,yAt(H,0.12));
 
   ctx.save(); ctx.strokeStyle=S.accent; ctx.lineWidth=4;
