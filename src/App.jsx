@@ -1970,6 +1970,40 @@ function StudioHome({ onOpen, onOpenNews, theme, onThemeToggle, T }) {
    NEWS CARD STUDIO — placeholder shell (UI to be built here)
 ═══════════════════════════════════════════════════════════════════════════ */
 /* ── News Card canvas renderer ─────────────────────────────────────────── */
+/* ── Hex → rgba helper for canvas gradient stops ───────────────────── */
+function hexAlpha(hex, a) {
+  const h = (hex || "#e8c84a").replace("#", "");
+  const r = parseInt(h.slice(0,2),16)||232;
+  const g = parseInt(h.slice(2,4),16)||200;
+  const b = parseInt(h.slice(4,6),16)||74;
+  return `rgba(${r},${g},${b},${a})`;
+}
+
+/* ── Style presets ──────────────────────────────────────────────────── */
+const NC_PRESETS = {
+  default:   { label:"الافتراضي",  sw:["#e8c84a","#ffffff","#2a2a38"], gradient:"strong", accentColor:"#e8c84a", headColor:"#ffffff", subColor:"rgba(255,255,255,.55)", bodyColor:"#2a2a38" },
+  soft:      { label:"ناعم",       sw:["#ffffff","#f8f8f8","#1a1a2e"], gradient:"soft",   accentColor:"#ffffff", headColor:"#f8f8f8",  subColor:"rgba(248,248,248,.75)", bodyColor:"#1a1a2e" },
+  breaking:  { label:"عاجل",       sw:["#ef4444","#ffffff","#200808"], gradient:"strong", accentColor:"#ef4444", headColor:"#ffffff",  subColor:"rgba(255,200,200,.75)", bodyColor:"#200808" },
+  midnight:  { label:"ليلي",       sw:["#3b82f6","#e8f0ff","#0a0a2a"], gradient:"strong", accentColor:"#3b82f6", headColor:"#e8f0ff",  subColor:"rgba(200,220,255,.70)", bodyColor:"#0a0a2a" },
+  golden:    { label:"ذهبي فاتح",  sw:["#f59e0b","#fffde8","#1a1000"], gradient:"soft",   accentColor:"#f59e0b", headColor:"#fffde8",  subColor:"rgba(255,253,200,.65)", bodyColor:"#1a1000" },
+  editorial: { label:"إخباري",     sw:["#10b981","#ffffff","#022c22"], gradient:"soft",   accentColor:"#10b981", headColor:"#ffffff",  subColor:"rgba(200,255,235,.65)", bodyColor:"#022c22" },
+};
+
+/* ── Default NC state (used for initial state and full reset) ───────── */
+const DEFAULT_NC = {
+  category:"رياضة", date:"٢٤ مايو ٢٠٢٦",
+  headline:"عنوان الخبر الرياضي الرئيسي يُكتب هنا",
+  subheadline:"تفاصيل وملخص الخبر يُكتبان في هذا الحقل",
+  body:"اكتب نص الخبر الكامل هنا. يمكن أن يكون النص طويلاً ويمتد على عدة أسطر. يتم ضبط حجم الخط والتباعد تلقائياً حسب حجم البطاقة المختارة.",
+  footer:"osl.om  ·  @OmanLeague",
+  gradient:"strong", template:"image", cardSize:"portrait",
+  imgScale:1.0, imgOffsetX:0, imgOffsetY:0, imgFit:"cover",
+  headSzMult:1.0, subSzMult:1.0, bodySzMult:1.0,
+  highlights:[], preset:"default",
+  headColor:"#ffffff", subColor:"rgba(255,255,255,.55)",
+  accentColor:"#e8c84a", bodyColor:"#2a2a38",
+};
+
 /* ── Word-highlight renderer for RTL canvas text ───────────────────── */
 /* Draws text in default color then clips + redraws each matched phrase. */
 function drawHighlightedText(ctx, text, x, y, lineH, highlights) {
@@ -2029,6 +2063,7 @@ function drawNewsCard(ctx, NC, bgImg) {
   const W = 1080, H = 1350, Rn = Math.round;
   const M = 64;
   const FOOT_H = 100;
+  const ac = NC.accentColor || "#e8c84a";
 
   /* ── 1. BASE: full-canvas image or dark editorial background ────────── */
   if (bgImg) {
@@ -2103,7 +2138,7 @@ function drawNewsCard(ctx, NC, bgImg) {
   const catPW  = Rn(catTW + 48), catPH = 50;
   const catX   = W - M - catPW, catY = 64;
   ctx.beginPath(); ctx.roundRect(catX, catY, catPW, catPH, catPH / 2);
-  ctx.fillStyle = "#e8c84a"; ctx.fill();
+  ctx.fillStyle = ac; ctx.fill();
   ctx.shadowBlur = 0;
   ctx.fillStyle = "#000"; ctx.textAlign = "center";
   ctx.fillText(cat, catX + catPW / 2, catY + catPH / 2);
@@ -2121,10 +2156,10 @@ function drawNewsCard(ctx, NC, bgImg) {
   /* ── 5. GOLD ACCENT LINE — transition from image to text zone ──────── */
   const lineY = Rn(H * 0.630);
   const lineGrad = ctx.createLinearGradient(M, 0, W - M, 0);
-  lineGrad.addColorStop(0,    "rgba(232,200,74,0)");
-  lineGrad.addColorStop(0.08, "rgba(232,200,74,.80)");
-  lineGrad.addColorStop(0.92, "rgba(232,200,74,.80)");
-  lineGrad.addColorStop(1,    "rgba(232,200,74,0)");
+  lineGrad.addColorStop(0,    hexAlpha(ac, 0));
+  lineGrad.addColorStop(0.08, ac);
+  lineGrad.addColorStop(0.92, ac);
+  lineGrad.addColorStop(1,    hexAlpha(ac, 0));
   ctx.fillStyle = lineGrad;
   ctx.fillRect(M, lineY, W - M * 2, 2);
 
@@ -2136,7 +2171,7 @@ function drawNewsCard(ctx, NC, bgImg) {
 
   ctx.save();
   ctx.font = `900 ${headSz}px 'Cairo','Tajawal',sans-serif`;
-  ctx.fillStyle = "#ffffff";
+  ctx.fillStyle = NC.headColor || "#ffffff";
   ctx.textAlign = "right"; ctx.textBaseline = "top"; ctx.direction = "rtl";
   ctx.shadowColor = "rgba(0,0,0,.7)"; ctx.shadowBlur = 22;
   const headLines = wrapText(ctx, NC.headline || "العنوان الرئيسي", maxTxtW, headMaxL);
@@ -2157,7 +2192,7 @@ function drawNewsCard(ctx, NC, bgImg) {
     if (subMax > 0) {
       ctx.save();
       ctx.font = `400 ${subSz}px 'Cairo','Tajawal',sans-serif`;
-      ctx.fillStyle = "rgba(255,255,255,.55)";
+      ctx.fillStyle = NC.subColor || "rgba(255,255,255,.55)";
       ctx.textAlign = "right"; ctx.textBaseline = "top"; ctx.direction = "rtl";
       ctx.shadowColor = "rgba(0,0,0,.5)"; ctx.shadowBlur = 12;
       const subLines = wrapText(ctx, NC.subheadline, maxTxtW, subMax);
@@ -2174,7 +2209,7 @@ function drawNewsCard(ctx, NC, bgImg) {
   const footY = H - FOOT_H;
   /* Gold separator line */
   ctx.save();
-  ctx.strokeStyle = "rgba(232,200,74,.35)"; ctx.lineWidth = 1;
+  ctx.strokeStyle = hexAlpha(ac, .35); ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(M, footY); ctx.lineTo(W - M, footY); ctx.stroke();
   /* Website / footer text */
   ctx.font = `400 ${Rn(19)}px 'Cairo','Tajawal',sans-serif`;
@@ -2192,9 +2227,9 @@ function drawLongTextCard(ctx, NC, bgImg) {
   const H = isSquare ? 1080 : isStory ? 1920 : 1350;
   const M = 72;
 
-  const GOLD   = "#c8a415";
+  const GOLD   = NC.accentColor || "#c8a415";
   const DARK   = "#0d0d16";
-  const BODY_C = "#2a2a38";
+  const BODY_C = NC.bodyColor  || "#2a2a38";
   const MUTED  = "#72728a";
 
   /* 1. White background */
@@ -2254,10 +2289,10 @@ function drawLongTextCard(ctx, NC, bgImg) {
 
   /* Gold separator */
   const lineGrad = ctx.createLinearGradient(M, 0, W - M, 0);
-  lineGrad.addColorStop(0,    "rgba(200,164,21,0)");
+  lineGrad.addColorStop(0,    hexAlpha(GOLD, 0));
   lineGrad.addColorStop(0.05, GOLD);
   lineGrad.addColorStop(0.95, GOLD);
-  lineGrad.addColorStop(1,    "rgba(200,164,21,0)");
+  lineGrad.addColorStop(1,    hexAlpha(GOLD, 0));
   ctx.fillStyle = lineGrad; ctx.fillRect(M, curY, W - M * 2, 2);
   curY += 30;
 
@@ -2278,7 +2313,7 @@ function drawLongTextCard(ctx, NC, bgImg) {
   curY += 18;
 
   /* Thin rule after headline */
-  ctx.fillStyle = "rgba(200,164,21,.28)";
+  ctx.fillStyle = hexAlpha(GOLD, .28);
   ctx.fillRect(M, curY, W - M * 2, 1);
   curY += 26;
 
@@ -2306,7 +2341,7 @@ function drawLongTextCard(ctx, NC, bgImg) {
   /* 6. Footer */
   const footY = H - FOOT_H;
   ctx.save();
-  ctx.strokeStyle = "rgba(200,164,21,.28)"; ctx.lineWidth = 1;
+  ctx.strokeStyle = hexAlpha(GOLD, .28); ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(M, footY); ctx.lineTo(W - M, footY); ctx.stroke();
   ctx.font = `400 ${Rn(19)}px 'Cairo','Tajawal',sans-serif`;
   ctx.fillStyle = MUTED; ctx.textAlign = "center";
@@ -2319,27 +2354,31 @@ function drawLongTextCard(ctx, NC, bgImg) {
 function NewsCardStudio({ onBack, theme, T }) {
   const isDark     = theme === "dark";
   const ncRef      = useRef(null);
-  const [NC, setNC] = useState({
-    category:    "رياضة",
-    date:        "٢٤ مايو ٢٠٢٦",
-    headline:    "عنوان الخبر الرياضي الرئيسي يُكتب هنا",
-    subheadline: "تفاصيل وملخص الخبر يُكتبان في هذا الحقل",
-    body:        "اكتب نص الخبر الكامل هنا. يمكن أن يكون النص طويلاً ويمتد على عدة أسطر. يتم ضبط حجم الخط والتباعد تلقائياً حسب حجم البطاقة المختارة.",
-    footer:      "osl.om  ·  @OmanLeague",
-    gradient:    "strong",
-    template:    "image",
-    cardSize:    "portrait",
-    imgScale:    1.0,
-    imgOffsetX:  0,
-    imgOffsetY:  0,
-    imgFit:      "cover",
-    headSzMult:  1.0,
-    subSzMult:   1.0,
-    bodySzMult:  1.0,
-    highlights:  [],
-  });
+  const [NC, setNC]         = useState({...DEFAULT_NC});
   const [ncBgImg, setNcBgImg] = useState(null);
+  const [exporting, setExporting] = useState(false);
   const UN = (k, v) => setNC(p => ({ ...p, [k]: v }));
+
+  /* Full card reset */
+  const handleReset = useCallback(() => {
+    setNC({...DEFAULT_NC, highlights:[]});
+    setNcBgImg(null);
+  }, []);
+
+  /* PNG export */
+  const handleExport = useCallback(() => {
+    const canvas = ncRef.current; if (!canvas) return;
+    setExporting(true);
+    setTimeout(() => {
+      try {
+        const date = new Date().toISOString().slice(0,10);
+        const a = document.createElement("a");
+        a.download = `news-card-${date}.png`;
+        a.href = canvas.toDataURL("image/png");
+        a.click();
+      } finally { setExporting(false); }
+    }, 80);
+  }, []);
 
   /* Canvas height depends on template + cardSize */
   const H_CANVAS = NC.template === "longtext"
@@ -2403,6 +2442,14 @@ function NewsCardStudio({ onBack, theme, T }) {
           background:"rgba(16,185,129,.1)", border:"1px solid rgba(16,185,129,.25)",
           fontSize:9, fontWeight:700, color:"#10b981",
         }}>News Card Studio</div>
+        <button onClick={handleExport} disabled={exporting} style={{
+          padding:"6px 16px", borderRadius:8, cursor: exporting ? "default" : "pointer",
+          fontSize:12, fontWeight:700, border:"none",
+          background: exporting ? T.btnBg : T.accent,
+          color: exporting ? T.textMuted : T.accentFg,
+          opacity: exporting ? .7 : 1,
+          flexShrink:0,
+        }}>{exporting ? "جاري التصدير..." : "⬇ تصدير PNG"}</button>
       </header>
 
       {/* Body */}
@@ -2469,6 +2516,53 @@ function NewsCardStudio({ onBack, theme, T }) {
 
             return (
               <>
+                {/* ── 0. Full reset ── */}
+                <div style={{padding:"12px 14px 0"}}>
+                  <button onClick={handleReset} style={{
+                    width:"100%", padding:"8px", borderRadius:8, cursor:"pointer",
+                    border:`1px solid rgba(239,68,68,.30)`,
+                    background:"rgba(239,68,68,.07)",
+                    fontSize:11, fontWeight:700, color:"#ef4444",
+                  }}>↺ إعادة تعيين البطاقة</button>
+                </div>
+
+                {/* ── Presets ── */}
+                <div>
+                  <SH label="الأنماط الجاهزة" />
+                  <div style={{
+                    display:"grid", gridTemplateColumns:"repeat(3,1fr)",
+                    gap:6, padding:"0 14px 12px",
+                  }}>
+                    {Object.entries(NC_PRESETS).map(([key, pr]) => (
+                      <button key={key}
+                        onClick={() => setNC(p => ({
+                          ...p, preset:key, gradient:pr.gradient,
+                          accentColor:pr.accentColor, headColor:pr.headColor,
+                          subColor:pr.subColor, bodyColor:pr.bodyColor,
+                        }))}
+                        style={{
+                          padding:"7px 4px 5px", borderRadius:8, cursor:"pointer",
+                          display:"flex", flexDirection:"column", alignItems:"center", gap:4,
+                          border:`2px solid ${NC.preset===key ? T.accent : T.inputBorder}`,
+                          background: NC.preset===key ? T.accentBg : T.btnBg,
+                        }}
+                      >
+                        <div style={{display:"flex", gap:2}}>
+                          {pr.sw.map((c,i) => (
+                            <div key={i} style={{
+                              width:10, height:10, borderRadius:2, background:c,
+                              border:"1px solid rgba(0,0,0,.18)",
+                            }}/>
+                          ))}
+                        </div>
+                        <span style={{fontSize:9, fontWeight:700, color:T.text,
+                          whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis",
+                          maxWidth:"100%"}}>{pr.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 {/* ── 1. نوع البطاقة ── */}
                 <div style={{paddingTop:14}}>
                   <SH label="نوع البطاقة" />
