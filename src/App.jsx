@@ -2002,6 +2002,14 @@ const DEFAULT_NC = {
   highlights:[], preset:"default",
   headColor:"#ffffff", subColor:"rgba(255,255,255,.55)",
   accentColor:"#e8c84a", bodyColor:"#2a2a38",
+  /* Card branding (Long Text only) */
+  showBranding: false,
+  brandHeaderTitle: "أخبار كرة القدم",
+  brandHeaderTitleColor: "#e8c84a",
+  brandFooterSite: "ofa.om",
+  brandInstagram: "@omanfa",
+  brandFacebook: "",
+  brandYoutube: "",
 };
 
 /* ── Word-highlight renderer for RTL canvas text ───────────────────── */
@@ -2220,7 +2228,7 @@ function drawNewsCard(ctx, NC, bgImg) {
 }
 
 /* ── Long-text editorial card renderer ──────────────────────────────────── */
-function drawLongTextCard(ctx, NC, bgImg) {
+function drawLongTextCard(ctx, NC, bgImg, brandLogo = null) {
   const W = 1080, Rn = Math.round;
   const isSquare = NC.cardSize === "square";
   const isStory  = NC.cardSize === "story";
@@ -2269,6 +2277,41 @@ function drawLongTextCard(ctx, NC, bgImg) {
     ctx.fillStyle = "rgba(0,0,0,.22)"; ctx.textAlign = "center";
     ctx.textBaseline = "middle"; ctx.direction = "rtl";
     ctx.fillText("↑ أضف صورة من لوحة التحكم", W / 2, imgH / 2);
+    ctx.restore();
+  }
+
+  /* 2b. Header branding overlay (top of image zone) */
+  if (NC.showBranding) {
+    const BH = 72; // band height
+    const hg = ctx.createLinearGradient(0, 0, 0, BH + 20);
+    hg.addColorStop(0, "rgba(0,0,0,.78)");
+    hg.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = hg; ctx.fillRect(0, 0, W, BH + 20);
+
+    /* Logo — right side (RTL convention) */
+    let titleRightEdge = W - M;
+    if (brandLogo) {
+      const lH  = Math.min(42, brandLogo.naturalHeight);
+      const lW  = Rn(lH * (brandLogo.naturalWidth / brandLogo.naturalHeight));
+      const lX  = W - M - lW;
+      const lY  = Rn((BH - lH) / 2);
+      ctx.save();
+      ctx.shadowColor = "rgba(0,0,0,.35)"; ctx.shadowBlur = 6;
+      ctx.drawImage(brandLogo, lX, lY, lW, lH);
+      ctx.restore();
+      titleRightEdge = lX - 10;
+    }
+
+    /* Header title text */
+    const htColor = NC.brandHeaderTitleColor || "#e8c84a";
+    ctx.save();
+    ctx.font = `700 ${Rn(26)}px 'Cairo','Tajawal',sans-serif`;
+    ctx.fillStyle = htColor;
+    ctx.textAlign = "right"; ctx.textBaseline = "middle";
+    ctx.direction = "rtl";
+    ctx.shadowColor = "rgba(0,0,0,.5)"; ctx.shadowBlur = 6;
+    ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 1;
+    ctx.fillText(NC.brandHeaderTitle || "", titleRightEdge, BH / 2);
     ctx.restore();
   }
 
@@ -2343,10 +2386,35 @@ function drawLongTextCard(ctx, NC, bgImg) {
   ctx.save();
   ctx.strokeStyle = hexAlpha(GOLD, .28); ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(M, footY); ctx.lineTo(W - M, footY); ctx.stroke();
-  ctx.font = `400 ${Rn(19)}px 'Cairo','Tajawal',sans-serif`;
-  ctx.fillStyle = MUTED; ctx.textAlign = "center";
-  ctx.textBaseline = "middle"; ctx.direction = "ltr";
-  ctx.fillText(NC.footer || "", W / 2, footY + FOOT_H / 2);
+  const footMid = footY + FOOT_H / 2;
+
+  if (NC.showBranding) {
+    /* Left: social/web handles */
+    const socParts = [
+      NC.brandFooterSite,
+      NC.brandInstagram,
+      NC.brandFacebook,
+      NC.brandYoutube,
+    ].filter(Boolean);
+    if (socParts.length > 0) {
+      ctx.font = `400 ${Rn(18)}px 'Cairo','Tajawal',sans-serif`;
+      ctx.fillStyle = MUTED; ctx.textAlign = "left";
+      ctx.textBaseline = "middle"; ctx.direction = "ltr";
+      ctx.fillText(socParts.join("  ·  "), M, footMid);
+    }
+    /* Right: NC.footer text (tagline / card ID) */
+    if (NC.footer) {
+      ctx.font = `400 ${Rn(18)}px 'Cairo','Tajawal',sans-serif`;
+      ctx.fillStyle = MUTED; ctx.textAlign = "right";
+      ctx.textBaseline = "middle"; ctx.direction = "ltr";
+      ctx.fillText(NC.footer, W - M, footMid);
+    }
+  } else {
+    ctx.font = `400 ${Rn(19)}px 'Cairo','Tajawal',sans-serif`;
+    ctx.fillStyle = MUTED; ctx.textAlign = "center";
+    ctx.textBaseline = "middle"; ctx.direction = "ltr";
+    ctx.fillText(NC.footer || "", W / 2, footMid);
+  }
   ctx.restore();
 }
 
@@ -2355,16 +2423,18 @@ function NewsCardStudio({ onBack, theme, T }) {
   const isDark     = theme === "dark";
   const ncRef      = useRef(null);
   const [NC, setNC]         = useState({...DEFAULT_NC});
-  const [ncBgImg,    setNcBgImg]    = useState(null);
-  const [ncBgImgSrc, setNcBgImgSrc] = useState(null); // raw data-URL for draft persistence
-  const [exporting,  setExporting]  = useState(false);
+  const [ncBgImg,       setNcBgImg]       = useState(null);
+  const [ncBgImgSrc,    setNcBgImgSrc]    = useState(null);
+  const [ncBrandLogo,   setNcBrandLogo]   = useState(null);
+  const [ncBrandLogoSrc,setNcBrandLogoSrc]= useState(null);
+  const [exporting,     setExporting]     = useState(false);
   const UN = (k, v) => setNC(p => ({ ...p, [k]: v }));
 
   /* Full card reset */
   const handleReset = useCallback(() => {
     setNC({...DEFAULT_NC, highlights:[]});
-    setNcBgImg(null);
-    setNcBgImgSrc(null);
+    setNcBgImg(null);    setNcBgImgSrc(null);
+    setNcBrandLogo(null); setNcBrandLogoSrc(null);
   }, []);
 
   /* PNG export */
@@ -2411,22 +2481,32 @@ function NewsCardStudio({ onBack, theme, T }) {
       name,
       savedAt,
       nc: JSON.parse(JSON.stringify(NC)),
-      imgSrc: ncBgImgSrc || null, // base64 data-URL, or null if no image
+      imgSrc:      ncBgImgSrc     || null,
+      brandLogoSrc:ncBrandLogoSrc || null,
     }, ...prev].slice(0, 20));
     setDraftName("مسودة");
-  }, [NC, draftName, ncBgImgSrc]);
+  }, [NC, draftName, ncBgImgSrc, ncBrandLogoSrc]);
 
   const loadDraft = useCallback((draft) => {
     setNC({ ...DEFAULT_NC, ...draft.nc,
       highlights: draft.nc.highlights || [] });
+    /* Restore background image */
     if (draft.imgSrc) {
       const img = new Image();
       img.onload  = () => { setNcBgImg(img); setNcBgImgSrc(draft.imgSrc); };
       img.onerror = () => { setNcBgImg(null); setNcBgImgSrc(null); };
       img.src = draft.imgSrc;
     } else {
-      setNcBgImg(null);
-      setNcBgImgSrc(null);
+      setNcBgImg(null); setNcBgImgSrc(null);
+    }
+    /* Restore brand logo */
+    if (draft.brandLogoSrc) {
+      const bl = new Image();
+      bl.onload  = () => { setNcBrandLogo(bl); setNcBrandLogoSrc(draft.brandLogoSrc); };
+      bl.onerror = () => { setNcBrandLogo(null); setNcBrandLogoSrc(null); };
+      bl.src = draft.brandLogoSrc;
+    } else {
+      setNcBrandLogo(null); setNcBrandLogoSrc(null);
     }
   }, []);
 
@@ -2450,9 +2530,9 @@ function NewsCardStudio({ onBack, theme, T }) {
     const canvas = ncRef.current; if (!canvas) return;
     canvas.width = 1080; canvas.height = H_CANVAS;
     const ctx = canvas.getContext("2d");
-    if (NC.template === "longtext") drawLongTextCard(ctx, NC, ncBgImg);
+    if (NC.template === "longtext") drawLongTextCard(ctx, NC, ncBgImg, ncBrandLogo);
     else drawNewsCard(ctx, NC, ncBgImg);
-  }, [NC, ncBgImg, H_CANVAS]);
+  }, [NC, ncBgImg, ncBrandLogo, H_CANVAS]);
 
   /* Background image loader — keeps data-URL for draft persistence */
   const loadBg = useCallback(e => {
@@ -2462,6 +2542,20 @@ function NewsCardStudio({ onBack, theme, T }) {
       const src = ev.target.result;
       const img = new Image();
       img.onload = () => { setNcBgImg(img); setNcBgImgSrc(src); };
+      img.src = src;
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  }, []);
+
+  /* Brand logo loader */
+  const loadBrandLogo = useCallback(e => {
+    const file = e.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const src = ev.target.result;
+      const img = new Image();
+      img.onload = () => { setNcBrandLogo(img); setNcBrandLogoSrc(src); };
       img.src = src;
     };
     reader.readAsDataURL(file);
@@ -2643,6 +2737,120 @@ function NewsCardStudio({ onBack, theme, T }) {
                       active={NC.cardSize}
                       onSelect={v => UN("cardSize", v)}
                     />
+                  </div>
+                )}
+
+                {/* ── 2b. هوية البطاقة (longtext only) ── */}
+                {NC.template === "longtext" && (
+                  <div>
+                    <SH label="هوية البطاقة" />
+                    <BtnGroup
+                      options={[["true","إظهار الهوية"],["false","إخفاء"]]}
+                      active={String(NC.showBranding)}
+                      onSelect={v => UN("showBranding", v === "true")}
+                    />
+
+                    {NC.showBranding && (
+                      <div style={{marginTop:10, display:"flex", flexDirection:"column", gap:8}}>
+
+                        {/* Logo upload */}
+                        <div>
+                          <div style={{fontSize:11, fontWeight:600,
+                            color: isDark?"rgba(255,255,255,.45)":"rgba(0,0,0,.45)",
+                            marginBottom:4, direction:"rtl"}}>شعار الجهة</div>
+                          <label style={{
+                            display:"block", padding:"8px 10px", borderRadius:7, cursor:"pointer",
+                            textAlign:"center", border:`1px dashed ${T.inputBorder}`,
+                            background:T.inputBg, fontSize:11,
+                            color: ncBrandLogo ? "#10b981" : T.textMuted,
+                          }}>
+                            {ncBrandLogo ? "✓ تم رفع الشعار" : "رفع شعار..."}
+                            <input type="file" accept="image/*"
+                              onChange={loadBrandLogo} style={{display:"none"}}/>
+                          </label>
+                          {ncBrandLogo && (
+                            <button
+                              onClick={()=>{setNcBrandLogo(null);setNcBrandLogoSrc(null);}}
+                              style={{
+                                width:"100%", padding:"5px", borderRadius:6, marginTop:4,
+                                border:`1px solid ${T.btnBorder}`, background:T.btnBg,
+                                cursor:"pointer", fontSize:11, color:T.btnText,
+                              }}>حذف الشعار</button>
+                          )}
+                        </div>
+
+                        {/* Header title */}
+                        <div>
+                          <div style={{fontSize:11, fontWeight:600,
+                            color: isDark?"rgba(255,255,255,.45)":"rgba(0,0,0,.45)",
+                            marginBottom:4, direction:"rtl"}}>عنوان الهيدر</div>
+                          <input value={NC.brandHeaderTitle||""} dir="rtl"
+                            onChange={e=>UN("brandHeaderTitle",e.target.value)}
+                            placeholder="أخبار كرة القدم"
+                            style={{...inp, fontSize:12}}/>
+                        </div>
+
+                        {/* Header title color */}
+                        <div style={{display:"flex", alignItems:"center",
+                          justifyContent:"space-between", gap:8}}>
+                          <div style={{fontSize:11, fontWeight:600,
+                            color: isDark?"rgba(255,255,255,.45)":"rgba(0,0,0,.45)",
+                            direction:"rtl"}}>لون عنوان الهيدر</div>
+                          <input type="color"
+                            value={NC.brandHeaderTitleColor||"#e8c84a"}
+                            onChange={e=>UN("brandHeaderTitleColor",e.target.value)}
+                            style={{
+                              width:32, height:24, border:"none", borderRadius:5,
+                              cursor:"pointer", background:"transparent", padding:2,
+                            }}/>
+                        </div>
+
+                        {/* Footer website */}
+                        <div>
+                          <div style={{fontSize:11, fontWeight:600,
+                            color: isDark?"rgba(255,255,255,.45)":"rgba(0,0,0,.45)",
+                            marginBottom:4, direction:"rtl"}}>الموقع / النطاق</div>
+                          <input value={NC.brandFooterSite||""} dir="ltr"
+                            onChange={e=>UN("brandFooterSite",e.target.value)}
+                            placeholder="ofa.om"
+                            style={{...inp, fontSize:12}}/>
+                        </div>
+
+                        {/* Instagram / X */}
+                        <div>
+                          <div style={{fontSize:11, fontWeight:600,
+                            color: isDark?"rgba(255,255,255,.45)":"rgba(0,0,0,.45)",
+                            marginBottom:4, direction:"rtl"}}>إنستغرام / X</div>
+                          <input value={NC.brandInstagram||""} dir="ltr"
+                            onChange={e=>UN("brandInstagram",e.target.value)}
+                            placeholder="@handle"
+                            style={{...inp, fontSize:12}}/>
+                        </div>
+
+                        {/* Facebook (optional) */}
+                        <div>
+                          <div style={{fontSize:11, fontWeight:600,
+                            color: isDark?"rgba(255,255,255,.45)":"rgba(0,0,0,.45)",
+                            marginBottom:4, direction:"rtl"}}>فيسبوك (اختياري)</div>
+                          <input value={NC.brandFacebook||""} dir="ltr"
+                            onChange={e=>UN("brandFacebook",e.target.value)}
+                            placeholder=""
+                            style={{...inp, fontSize:12}}/>
+                        </div>
+
+                        {/* YouTube (optional) */}
+                        <div>
+                          <div style={{fontSize:11, fontWeight:600,
+                            color: isDark?"rgba(255,255,255,.45)":"rgba(0,0,0,.45)",
+                            marginBottom:4, direction:"rtl"}}>يوتيوب (اختياري)</div>
+                          <input value={NC.brandYoutube||""} dir="ltr"
+                            onChange={e=>UN("brandYoutube",e.target.value)}
+                            placeholder=""
+                            style={{...inp, fontSize:12}}/>
+                        </div>
+
+                      </div>
+                    )}
                   </div>
                 )}
 
