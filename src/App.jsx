@@ -2243,21 +2243,54 @@ function drawLongTextCard(ctx, NC, bgImg, brandLogo = null) {
   /* 1. White background */
   ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, W, H);
 
-  /* 2. Image zone — top 38% (portrait/square) or 36% (story) */
-  const imgFrac = isStory ? 0.36 : 0.38;
-  const imgH    = Rn(H * imgFrac);
+  /* 1b. Header masthead — white strip above image (branding only) */
+  const headerH = NC.showBranding ? 70 : 0;
+  if (NC.showBranding) {
+    /* Gold separator line at bottom of masthead */
+    const hLG = ctx.createLinearGradient(M, 0, W - M, 0);
+    hLG.addColorStop(0,    hexAlpha(GOLD, 0));
+    hLG.addColorStop(0.05, GOLD);
+    hLG.addColorStop(0.95, GOLD);
+    hLG.addColorStop(1,    hexAlpha(GOLD, 0));
+    ctx.fillStyle = hLG; ctx.fillRect(M, headerH - 2, W - M * 2, 2);
+
+    /* Logo — left side */
+    let titleLeft = M;
+    if (brandLogo) {
+      const lH = Math.min(42, brandLogo.naturalHeight);
+      const lW = Rn(lH * (brandLogo.naturalWidth / brandLogo.naturalHeight));
+      ctx.drawImage(brandLogo, M, Rn((headerH - lH) / 2), lW, lH);
+      titleLeft = M + lW + 14;
+    }
+
+    /* Header title — LTR, left-aligned, beside logo */
+    ctx.save();
+    ctx.font = `700 ${Rn(24)}px 'Cairo','Tajawal',sans-serif`;
+    ctx.fillStyle = NC.brandHeaderTitleColor || "#e8c84a";
+    ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.direction = "ltr";
+    ctx.fillText(NC.brandHeaderTitle || "", titleLeft, headerH / 2);
+    ctx.restore();
+  }
+
+  /* 2. Image zone — starts at headerH, occupies top 38%/36% of total height */
+  const imgFrac  = isStory ? 0.36 : 0.38;
+  const imgH     = Rn(H * imgFrac);   // absolute Y where image block ends
+  const imgDrawH = imgH - headerH;     // actual drawable height for the image
 
   if (bgImg) {
     const baseSc = (NC.imgFit === "contain")
-      ? Math.min(W / bgImg.naturalWidth, imgH / bgImg.naturalHeight)
-      : Math.max(W / bgImg.naturalWidth, imgH / bgImg.naturalHeight);
+      ? Math.min(W / bgImg.naturalWidth, imgDrawH / bgImg.naturalHeight)
+      : Math.max(W / bgImg.naturalWidth, imgDrawH / bgImg.naturalHeight);
     const sc = baseSc * (NC.imgScale || 1.0);
     const dw = bgImg.naturalWidth * sc, dh = bgImg.naturalHeight * sc;
     const ox = Rn((NC.imgOffsetX || 0) / 100 * W);
-    const oy = Rn((NC.imgOffsetY || 0) / 100 * imgH);
+    const oy = Rn((NC.imgOffsetY || 0) / 100 * imgDrawH);
     ctx.save();
-    ctx.beginPath(); ctx.rect(0, 0, W, imgH); ctx.clip();
-    ctx.drawImage(bgImg, Rn((W - dw) / 2) + ox, Rn((imgH - dh) / 2) + oy, Rn(dw), Rn(dh));
+    ctx.beginPath(); ctx.rect(0, headerH, W, imgDrawH); ctx.clip();
+    ctx.drawImage(bgImg,
+      Rn((W - dw) / 2) + ox,
+      headerH + Rn((imgDrawH - dh) / 2) + oy,
+      Rn(dw), Rn(dh));
     ctx.restore();
     /* Soft fade at bottom of image into white */
     const fade = ctx.createLinearGradient(0, imgH - 90, 0, imgH);
@@ -2265,53 +2298,20 @@ function drawLongTextCard(ctx, NC, bgImg, brandLogo = null) {
     fade.addColorStop(1, "#ffffff");
     ctx.fillStyle = fade; ctx.fillRect(0, imgH - 90, W, 90);
   } else {
-    ctx.fillStyle = "#ebedf0"; ctx.fillRect(0, 0, W, imgH);
+    ctx.fillStyle = "#ebedf0"; ctx.fillRect(0, headerH, W, imgDrawH);
     ctx.save();
     ctx.strokeStyle = "rgba(0,0,0,.06)"; ctx.lineWidth = 1.5;
-    for (let i = -imgH; i < W + imgH; i += 28) {
-      ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i + imgH, imgH); ctx.stroke();
+    for (let i = -imgDrawH; i < W + imgDrawH; i += 28) {
+      ctx.beginPath();
+      ctx.moveTo(i, headerH); ctx.lineTo(i + imgDrawH, headerH + imgDrawH);
+      ctx.stroke();
     }
     ctx.restore();
     ctx.save();
     ctx.font = `600 ${Rn(28)}px 'Cairo','Tajawal',sans-serif`;
     ctx.fillStyle = "rgba(0,0,0,.22)"; ctx.textAlign = "center";
     ctx.textBaseline = "middle"; ctx.direction = "rtl";
-    ctx.fillText("↑ أضف صورة من لوحة التحكم", W / 2, imgH / 2);
-    ctx.restore();
-  }
-
-  /* 2b. Header branding overlay (top of image zone) */
-  if (NC.showBranding) {
-    const BH = 72; // band height
-    const hg = ctx.createLinearGradient(0, 0, 0, BH + 20);
-    hg.addColorStop(0, "rgba(0,0,0,.78)");
-    hg.addColorStop(1, "rgba(0,0,0,0)");
-    ctx.fillStyle = hg; ctx.fillRect(0, 0, W, BH + 20);
-
-    /* Logo — right side (RTL convention) */
-    let titleRightEdge = W - M;
-    if (brandLogo) {
-      const lH  = Math.min(42, brandLogo.naturalHeight);
-      const lW  = Rn(lH * (brandLogo.naturalWidth / brandLogo.naturalHeight));
-      const lX  = W - M - lW;
-      const lY  = Rn((BH - lH) / 2);
-      ctx.save();
-      ctx.shadowColor = "rgba(0,0,0,.35)"; ctx.shadowBlur = 6;
-      ctx.drawImage(brandLogo, lX, lY, lW, lH);
-      ctx.restore();
-      titleRightEdge = lX - 10;
-    }
-
-    /* Header title text */
-    const htColor = NC.brandHeaderTitleColor || "#e8c84a";
-    ctx.save();
-    ctx.font = `700 ${Rn(26)}px 'Cairo','Tajawal',sans-serif`;
-    ctx.fillStyle = htColor;
-    ctx.textAlign = "right"; ctx.textBaseline = "middle";
-    ctx.direction = "rtl";
-    ctx.shadowColor = "rgba(0,0,0,.5)"; ctx.shadowBlur = 6;
-    ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 1;
-    ctx.fillText(NC.brandHeaderTitle || "", titleRightEdge, BH / 2);
+    ctx.fillText("↑ أضف صورة من لوحة التحكم", W / 2, headerH + imgDrawH / 2);
     ctx.restore();
   }
 
@@ -2389,7 +2389,7 @@ function drawLongTextCard(ctx, NC, bgImg, brandLogo = null) {
   const footMid = footY + FOOT_H / 2;
 
   if (NC.showBranding) {
-    /* Left: social/web handles */
+    /* Left: website + social handles */
     const socParts = [
       NC.brandFooterSite,
       NC.brandInstagram,
@@ -2397,18 +2397,16 @@ function drawLongTextCard(ctx, NC, bgImg, brandLogo = null) {
       NC.brandYoutube,
     ].filter(Boolean);
     if (socParts.length > 0) {
-      ctx.font = `400 ${Rn(18)}px 'Cairo','Tajawal',sans-serif`;
+      ctx.font = `400 ${Rn(17)}px 'Cairo','Tajawal',sans-serif`;
       ctx.fillStyle = MUTED; ctx.textAlign = "left";
       ctx.textBaseline = "middle"; ctx.direction = "ltr";
       ctx.fillText(socParts.join("  ·  "), M, footMid);
     }
-    /* Right: NC.footer text (tagline / card ID) */
-    if (NC.footer) {
-      ctx.font = `400 ${Rn(18)}px 'Cairo','Tajawal',sans-serif`;
-      ctx.fillStyle = MUTED; ctx.textAlign = "right";
-      ctx.textBaseline = "middle"; ctx.direction = "ltr";
-      ctx.fillText(NC.footer, W - M, footMid);
-    }
+    /* Right: date (clean bottom-right placement) */
+    ctx.font = `400 ${Rn(17)}px 'Cairo','Tajawal',sans-serif`;
+    ctx.fillStyle = MUTED; ctx.textAlign = "right";
+    ctx.textBaseline = "middle"; ctx.direction = "rtl";
+    ctx.fillText(String(NC.date || ""), W - M, footMid);
   } else {
     ctx.font = `400 ${Rn(19)}px 'Cairo','Tajawal',sans-serif`;
     ctx.fillStyle = MUTED; ctx.textAlign = "center";
