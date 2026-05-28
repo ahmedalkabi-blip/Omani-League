@@ -2410,254 +2410,298 @@ function NewsCardStudio({ onBack, theme, T }) {
 
         {/* LEFT: controls */}
         <aside style={{
-          width:284, flexShrink:0, overflowY:"auto", padding:"16px 14px",
+          width:284, flexShrink:0, overflowY:"auto", padding:"0 0 24px",
           borderLeft:`1px solid ${T.divider}`, background:T.sidebarBg,
-          display:"flex", flexDirection:"column", gap:14,
+          display:"flex", flexDirection:"column",
         }}>
 
-          {/* ── Template selector ── */}
-          <div>
-            <div style={{fontSize:10, fontWeight:700, color:T.secTitle, marginBottom:6, letterSpacing:".04em"}}>نوع البطاقة</div>
-            <div style={{display:"flex", gap:6}}>
-              {[["image","بطاقة إخبارية"],["longtext","نص طويل"]].map(([val,lbl])=>(
-                <button key={val} onClick={()=>UN("template",val)} style={{
-                  flex:1, padding:"7px 4px", borderRadius:8, cursor:"pointer",
-                  fontSize:11, fontWeight:700,
-                  border:`1px solid ${NC.template===val ? T.accent : T.inputBorder}`,
-                  background: NC.template===val ? T.accent : T.btnBg,
-                  color: NC.template===val ? T.accentFg : T.btnText,
-                }}>{lbl}</button>
-              ))}
-            </div>
-          </div>
+          {/* Shared helpers */}
+          {(() => {
+            /* Section header (label + optional reset button) */
+            const SH = ({ label, onReset }) => (
+              <div style={{
+                display:"flex", alignItems:"center", justifyContent:"space-between",
+                padding:"10px 14px 6px",
+                borderBottom:`1px solid ${T.divider}`,
+                marginBottom:10,
+              }}>
+                <span style={{fontSize:9, fontWeight:800, color:T.secTitle,
+                  letterSpacing:".08em", textTransform:"uppercase"}}>{label}</span>
+                {onReset && (
+                  <button onClick={onReset} style={{
+                    fontSize:9, fontWeight:700, padding:"2px 8px", borderRadius:4,
+                    border:`1px solid ${T.inputBorder}`, background:T.btnBg,
+                    color:T.textMuted, cursor:"pointer", lineHeight:1.4,
+                  }}>إعادة ضبط</button>
+                )}
+              </div>
+            );
 
-          {/* ── Gradient options (image template only) ── */}
-          {NC.template === "image" && (
-            <div>
-              <div style={{fontSize:10, fontWeight:700, color:T.secTitle, marginBottom:6, letterSpacing:".04em"}}>نوع التدرج</div>
-              <div style={{display:"flex", gap:6}}>
-                {[["strong","غامق"],["soft","ناعم"],["none","بدون"]].map(([val,lbl])=>(
-                  <button key={val} onClick={()=>UN("gradient",val)} style={{
+            /* Toggle button group */
+            const BtnGroup = ({ options, active, onSelect, gap=6 }) => (
+              <div style={{display:"flex", gap, padding:"0 14px 12px"}}>
+                {options.map(([val,lbl]) => (
+                  <button key={val} onClick={()=>onSelect(val)} style={{
                     flex:1, padding:"6px 4px", borderRadius:8, cursor:"pointer",
                     fontSize:11, fontWeight:700,
-                    border:`1px solid ${NC.gradient===val ? T.accent : T.inputBorder}`,
-                    background: NC.gradient===val ? T.accent : T.btnBg,
-                    color: NC.gradient===val ? T.accentFg : T.btnText,
+                    border:`1px solid ${active===val ? T.accent : T.inputBorder}`,
+                    background: active===val ? T.accent : T.btnBg,
+                    color: active===val ? T.accentFg : T.btnText,
                   }}>{lbl}</button>
                 ))}
               </div>
-            </div>
-          )}
+            );
 
-          {/* ── Card size (long text only) ── */}
-          {NC.template === "longtext" && (
-            <div>
-              <div style={{fontSize:10, fontWeight:700, color:T.secTitle, marginBottom:6, letterSpacing:".04em"}}>حجم البطاقة</div>
-              <div style={{display:"flex", gap:6}}>
-                {[["portrait","عمودي"],["square","مربع"],["story","ستوري"]].map(([val,lbl])=>(
-                  <button key={val} onClick={()=>UN("cardSize",val)} style={{
-                    flex:1, padding:"6px 4px", borderRadius:8, cursor:"pointer",
-                    fontSize:11, fontWeight:700,
-                    border:`1px solid ${NC.cardSize===val ? T.accent : T.inputBorder}`,
-                    background: NC.cardSize===val ? T.accent : T.btnBg,
-                    color: NC.cardSize===val ? T.accentFg : T.btnText,
-                  }}>{lbl}</button>
-                ))}
+            /* Slider row */
+            const SliderRow = ({ label, value, min, max, display, onChange }) => (
+              <div style={{display:"flex", alignItems:"center", gap:6, padding:"0 14px", marginBottom:5}}>
+                <span style={{fontSize:10, color:T.textMuted, minWidth:36,
+                  direction:"rtl", textAlign:"right"}}>{label}</span>
+                <input type="range" min={min} max={max} step={1} value={value}
+                  onChange={e => onChange(Number(e.target.value))}
+                  style={{flex:1, accentColor:T.accent, cursor:"pointer"}}
+                />
+                <span style={{fontSize:10, color:T.textMuted, width:34, textAlign:"left"}}>
+                  {display}
+                </span>
               </div>
-            </div>
-          )}
+            );
 
-          {/* ── Font sizes ── */}
-          <div>
-            <div style={{fontSize:10, fontWeight:700, color:T.secTitle, marginBottom:6, letterSpacing:".04em"}}>أحجام النص</div>
-            <div style={{display:"flex", flexDirection:"column", gap:5}}>
-              {[
-                ["العنوان", "headSzMult"],
-                ...(NC.template === "image"    ? [["الفرعي","subSzMult"]]  : []),
-                ...(NC.template === "longtext" ? [["النص",  "bodySzMult"]] : []),
-              ].map(([lbl, key]) => (
-                <div key={key} style={{display:"flex", alignItems:"center", gap:6}}>
-                  <span style={{fontSize:10, color:T.textMuted, minWidth:36, direction:"rtl", textAlign:"right"}}>{lbl}</span>
-                  <input type="range" min={60} max={150} step={1}
-                    value={Math.round((NC[key]||1)*100)}
-                    onChange={e => UN(key, Number(e.target.value)/100)}
-                    style={{flex:1, accentColor:T.accent, cursor:"pointer"}}
+            return (
+              <>
+                {/* ── 1. نوع البطاقة ── */}
+                <div style={{paddingTop:14}}>
+                  <SH label="نوع البطاقة" />
+                  <BtnGroup
+                    options={[["image","بطاقة إخبارية"],["longtext","نص طويل"]]}
+                    active={NC.template}
+                    onSelect={v => UN("template", v)}
                   />
-                  <span style={{fontSize:10, color:T.textMuted, width:30, textAlign:"left"}}>
-                    {Math.round((NC[key]||1)*100)}%
-                  </span>
                 </div>
-              ))}
-            </div>
-          </div>
 
-          {/* ── Category ── */}
-          <div>
-            <div style={{fontSize:10, fontWeight:700, color:T.secTitle, marginBottom:5, letterSpacing:".04em"}}>التصنيف</div>
-            <input value={NC.category} onChange={e=>UN("category",e.target.value)} style={inp}/>
-          </div>
-
-          {/* ── Date ── */}
-          <div>
-            <div style={{fontSize:10, fontWeight:700, color:T.secTitle, marginBottom:5, letterSpacing:".04em"}}>التاريخ</div>
-            <input value={NC.date} onChange={e=>UN("date",e.target.value)} style={inp}/>
-          </div>
-
-          {/* ── Headline ── */}
-          <div>
-            <div style={{fontSize:10, fontWeight:700, color:T.secTitle, marginBottom:5, letterSpacing:".04em"}}>العنوان الرئيسي</div>
-            <textarea value={NC.headline} onChange={e=>UN("headline",e.target.value)} rows={3}
-              style={{...inp, resize:"vertical"}}/>
-          </div>
-
-          {/* ── Subheadline (image template only) ── */}
-          {NC.template === "image" && (
-            <div>
-              <div style={{fontSize:10, fontWeight:700, color:T.secTitle, marginBottom:5, letterSpacing:".04em"}}>العنوان الفرعي</div>
-              <textarea value={NC.subheadline} onChange={e=>UN("subheadline",e.target.value)} rows={3}
-                style={{...inp, resize:"vertical"}}/>
-            </div>
-          )}
-
-          {/* ── Body text (long text template only) ── */}
-          {NC.template === "longtext" && (
-            <div>
-              <div style={{fontSize:10, fontWeight:700, color:T.secTitle, marginBottom:5, letterSpacing:".04em"}}>نص الخبر</div>
-              <textarea value={NC.body} onChange={e=>UN("body",e.target.value)} rows={8}
-                style={{...inp, resize:"vertical", lineHeight:1.6}}/>
-            </div>
-          )}
-
-          {/* ── Word highlights ── */}
-          <div>
-            <div style={{fontSize:10, fontWeight:700, color:T.secTitle, marginBottom:6, letterSpacing:".04em"}}>تمييز الكلمات</div>
-            {NC.highlights.map((h, i) => (
-              <div key={i} style={{display:"flex", gap:4, marginBottom:5, alignItems:"center"}}>
-                <input
-                  value={h.phrase}
-                  onChange={e => {
-                    const n = [...NC.highlights];
-                    n[i] = {...n[i], phrase: e.target.value};
-                    UN("highlights", n);
-                  }}
-                  placeholder="الكلمة أو العبارة"
-                  dir="rtl"
-                  style={{...inp, flex:1, fontSize:11, padding:"5px 7px"}}
-                />
-                <input type="color" value={h.color}
-                  onChange={e => {
-                    const n = [...NC.highlights];
-                    n[i] = {...n[i], color: e.target.value};
-                    UN("highlights", n);
-                  }}
-                  style={{width:26, height:26, padding:2, border:"none", borderRadius:4,
-                    cursor:"pointer", flexShrink:0, background:"none"}}
-                />
-                <button
-                  onClick={() => UN("highlights", NC.highlights.filter((_,j)=>j!==i))}
-                  style={{
-                    width:22, height:22, borderRadius:4, flexShrink:0,
-                    border:`1px solid ${T.inputBorder}`, background:T.btnBg,
-                    color:T.textMuted, cursor:"pointer", fontSize:14,
-                    display:"flex", alignItems:"center", justifyContent:"center", padding:0,
-                  }}
-                >×</button>
-              </div>
-            ))}
-            <div style={{display:"flex", gap:5, alignItems:"center"}}>
-              {["#e8c84a","#ef4444","#22c55e","#3b82f6","#ffffff"].map(clr=>(
-                <button key={clr} title={clr}
-                  onClick={() => UN("highlights", [...NC.highlights, {phrase:"", color:clr}])}
-                  style={{
-                    width:20, height:20, borderRadius:4, background:clr, flexShrink:0,
-                    border:"1px solid rgba(0,0,0,.20)", cursor:"pointer", padding:0,
-                  }}
-                />
-              ))}
-              <button
-                onClick={() => UN("highlights", [...NC.highlights, {phrase:"", color:"#e8c84a"}])}
-                style={{
-                  flex:1, padding:"3px 6px", borderRadius:4, fontSize:10, fontWeight:700,
-                  border:`1px dashed ${T.inputBorder}`, background:T.btnBg,
-                  color:T.textMuted, cursor:"pointer",
-                }}
-              >+ تمييز</button>
-            </div>
-          </div>
-
-          {/* ── Footer text ── */}
-          <div>
-            <div style={{fontSize:10, fontWeight:700, color:T.secTitle, marginBottom:5, letterSpacing:".04em"}}>الموقع / النص السفلي</div>
-            <input value={NC.footer} onChange={e=>UN("footer",e.target.value)} style={inp}/>
-          </div>
-
-          {/* ── Background image ── */}
-          <div>
-            <div style={{fontSize:10, fontWeight:700, color:T.secTitle, marginBottom:5, letterSpacing:".04em"}}>صورة الخلفية</div>
-            <label style={{
-              display:"block", padding:"10px", borderRadius:8, cursor:"pointer", textAlign:"center",
-              border:`1px dashed ${T.inputBorder}`, background:T.inputBg,
-              fontSize:11, color: ncBgImg ? "#10b981" : T.textMuted,
-            }}>
-              {ncBgImg ? "✓ تم رفع الصورة" : "اختر صورة..."}
-              <input type="file" accept="image/*" onChange={loadBg} style={{display:"none"}}/>
-            </label>
-            {ncBgImg && (
-              <button onClick={()=>setNcBgImg(null)} style={{
-                marginTop:6, width:"100%", padding:"6px", borderRadius:6,
-                border:`1px solid ${T.btnBorder}`, background:T.btnBg,
-                cursor:"pointer", fontSize:11, color:T.btnText,
-              }}>حذف الصورة</button>
-            )}
-          </div>
-
-          {/* ── Image controls (only when an image is loaded) ── */}
-          {ncBgImg && (
-            <div>
-              <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:6}}>
-                <div style={{fontSize:10, fontWeight:700, color:T.secTitle, letterSpacing:".04em"}}>التحكم بالصورة</div>
-                <button
-                  onClick={() => setNC(p => ({...p, imgScale:1, imgOffsetX:0, imgOffsetY:0, imgFit:"cover"}))}
-                  style={{
-                    fontSize:9, fontWeight:700, padding:"2px 7px", borderRadius:4,
-                    border:`1px solid ${T.inputBorder}`, background:T.btnBg,
-                    color:T.textMuted, cursor:"pointer",
-                  }}
-                >إعادة ضبط</button>
-              </div>
-              {/* Fit mode */}
-              <div style={{display:"flex", gap:6, marginBottom:8}}>
-                {[["cover","تعبئة"],["contain","ملاءمة"]].map(([val,lbl])=>(
-                  <button key={val} onClick={()=>UN("imgFit",val)} style={{
-                    flex:1, padding:"5px 4px", borderRadius:6, cursor:"pointer",
-                    fontSize:10, fontWeight:700,
-                    border:`1px solid ${NC.imgFit===val ? T.accent : T.inputBorder}`,
-                    background: NC.imgFit===val ? T.accent : T.btnBg,
-                    color: NC.imgFit===val ? T.accentFg : T.btnText,
-                  }}>{lbl}</button>
-                ))}
-              </div>
-              {/* Scale + position sliders */}
-              <div style={{display:"flex", flexDirection:"column", gap:6}}>
-                {[
-                  ["تكبير",  "imgScale",   50,  300, Math.round((NC.imgScale||1)*100),  v => v/100],
-                  ["أفقي",   "imgOffsetX", -50,  50, NC.imgOffsetX||0,                  v => v],
-                  ["عمودي",  "imgOffsetY", -50,  50, NC.imgOffsetY||0,                  v => v],
-                ].map(([lbl, key, mn, mx, disp, toVal]) => (
-                  <div key={key} style={{display:"flex", alignItems:"center", gap:6}}>
-                    <span style={{fontSize:10, color:T.textMuted, minWidth:30, direction:"rtl", textAlign:"right"}}>{lbl}</span>
-                    <input type="range" min={mn} max={mx} step={1} value={disp}
-                      onChange={e => UN(key, toVal(Number(e.target.value)))}
-                      style={{flex:1, accentColor:T.accent, cursor:"pointer"}}
+                {/* ── 2. حجم البطاقة (longtext only) ── */}
+                {NC.template === "longtext" && (
+                  <div>
+                    <SH label="حجم البطاقة" />
+                    <BtnGroup
+                      options={[["portrait","عمودي"],["square","مربع"],["story","ستوري"]]}
+                      active={NC.cardSize}
+                      onSelect={v => UN("cardSize", v)}
                     />
-                    <span style={{fontSize:10, color:T.textMuted, width:34, textAlign:"left"}}>
-                      {key==="imgScale" ? `${disp}%` : disp}
-                    </span>
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
+                )}
+
+                {/* ── 3. نوع التدرج (image only) ── */}
+                {NC.template === "image" && (
+                  <div>
+                    <SH label="نوع التدرج" />
+                    <BtnGroup
+                      options={[["strong","غامق"],["soft","ناعم"],["none","بدون"]]}
+                      active={NC.gradient}
+                      onSelect={v => UN("gradient", v)}
+                    />
+                  </div>
+                )}
+
+                {/* ── 4. أحجام النص ── */}
+                <div>
+                  <SH label="أحجام النص"
+                    onReset={() => setNC(p => ({...p, headSzMult:1, subSzMult:1, bodySzMult:1}))}
+                  />
+                  <SliderRow label="العنوان"
+                    value={Math.round((NC.headSzMult||1)*100)} min={60} max={150}
+                    display={`${Math.round((NC.headSzMult||1)*100)}%`}
+                    onChange={v => UN("headSzMult", v/100)}
+                  />
+                  {NC.template === "image" && (
+                    <SliderRow label="الفرعي"
+                      value={Math.round((NC.subSzMult||1)*100)} min={60} max={150}
+                      display={`${Math.round((NC.subSzMult||1)*100)}%`}
+                      onChange={v => UN("subSzMult", v/100)}
+                    />
+                  )}
+                  {NC.template === "longtext" && (
+                    <SliderRow label="النص"
+                      value={Math.round((NC.bodySzMult||1)*100)} min={60} max={150}
+                      display={`${Math.round((NC.bodySzMult||1)*100)}%`}
+                      onChange={v => UN("bodySzMult", v/100)}
+                    />
+                  )}
+                  <div style={{height:4}}/>
+                </div>
+
+                {/* ── 5. بيانات الخبر ── */}
+                <div>
+                  <SH label="بيانات الخبر" />
+                  <div style={{display:"flex", flexDirection:"column", gap:10, padding:"0 14px 12px"}}>
+
+                    <div>
+                      <div style={{fontSize:10, fontWeight:600, color:T.secTitle,
+                        marginBottom:4, direction:"rtl"}}>التصنيف</div>
+                      <input value={NC.category} onChange={e=>UN("category",e.target.value)}
+                        style={inp} dir="rtl"/>
+                    </div>
+
+                    <div>
+                      <div style={{fontSize:10, fontWeight:600, color:T.secTitle,
+                        marginBottom:4, direction:"rtl"}}>التاريخ</div>
+                      <input value={NC.date} onChange={e=>UN("date",e.target.value)}
+                        style={inp} dir="rtl"/>
+                    </div>
+
+                    <div>
+                      <div style={{fontSize:10, fontWeight:600, color:T.secTitle,
+                        marginBottom:4, direction:"rtl"}}>العنوان الرئيسي</div>
+                      <textarea value={NC.headline} onChange={e=>UN("headline",e.target.value)}
+                        rows={3} dir="rtl" style={{...inp, resize:"vertical"}}/>
+                    </div>
+
+                    {NC.template === "image" && (
+                      <div>
+                        <div style={{fontSize:10, fontWeight:600, color:T.secTitle,
+                          marginBottom:4, direction:"rtl"}}>العنوان الفرعي</div>
+                        <textarea value={NC.subheadline} onChange={e=>UN("subheadline",e.target.value)}
+                          rows={3} dir="rtl" style={{...inp, resize:"vertical"}}/>
+                      </div>
+                    )}
+
+                    {NC.template === "longtext" && (
+                      <div>
+                        <div style={{fontSize:10, fontWeight:600, color:T.secTitle,
+                          marginBottom:4, direction:"rtl"}}>نص الخبر</div>
+                        <textarea value={NC.body} onChange={e=>UN("body",e.target.value)}
+                          rows={8} dir="rtl" style={{...inp, resize:"vertical", lineHeight:1.6}}/>
+                      </div>
+                    )}
+
+                    <div>
+                      <div style={{fontSize:10, fontWeight:600, color:T.secTitle,
+                        marginBottom:4, direction:"rtl"}}>الموقع / النص السفلي</div>
+                      <input value={NC.footer} onChange={e=>UN("footer",e.target.value)}
+                        style={inp} dir="ltr"/>
+                    </div>
+
+                  </div>
+                </div>
+
+                {/* ── 6. تمييز الكلمات ── */}
+                <div>
+                  <SH label="تمييز الكلمات"
+                    onReset={() => UN("highlights", [])}
+                  />
+                  <div style={{padding:"0 14px 12px"}}>
+                    {NC.highlights.map((h, i) => (
+                      <div key={i} style={{display:"flex", gap:4, marginBottom:6, alignItems:"center"}}>
+                        <input
+                          value={h.phrase}
+                          onChange={e => {
+                            const n = [...NC.highlights];
+                            n[i] = {...n[i], phrase: e.target.value};
+                            UN("highlights", n);
+                          }}
+                          placeholder="الكلمة أو العبارة"
+                          dir="rtl"
+                          style={{...inp, flex:1, fontSize:11, padding:"5px 8px"}}
+                        />
+                        <input type="color" value={h.color}
+                          onChange={e => {
+                            const n = [...NC.highlights];
+                            n[i] = {...n[i], color: e.target.value};
+                            UN("highlights", n);
+                          }}
+                          style={{width:28, height:28, padding:2, border:"none",
+                            borderRadius:5, cursor:"pointer", flexShrink:0}}
+                        />
+                        <button
+                          onClick={() => UN("highlights", NC.highlights.filter((_,j)=>j!==i))}
+                          style={{
+                            width:24, height:24, borderRadius:5, flexShrink:0,
+                            border:`1px solid ${T.inputBorder}`, background:T.btnBg,
+                            color:T.textMuted, cursor:"pointer", fontSize:15,
+                            display:"flex", alignItems:"center", justifyContent:"center", padding:0,
+                          }}
+                        >×</button>
+                      </div>
+                    ))}
+                    {/* Preset swatches + add button */}
+                    <div style={{display:"flex", gap:5, alignItems:"center", marginTop:4}}>
+                      {["#e8c84a","#ef4444","#22c55e","#3b82f6","#ffffff"].map(clr=>(
+                        <button key={clr} title={clr}
+                          onClick={() => UN("highlights", [...NC.highlights, {phrase:"", color:clr}])}
+                          style={{
+                            width:22, height:22, borderRadius:5, background:clr, flexShrink:0,
+                            border:"1px solid rgba(0,0,0,.22)", cursor:"pointer", padding:0,
+                          }}
+                        />
+                      ))}
+                      <button
+                        onClick={() => UN("highlights", [...NC.highlights, {phrase:"", color:"#e8c84a"}])}
+                        style={{
+                          flex:1, padding:"4px 6px", borderRadius:5, fontSize:10, fontWeight:700,
+                          border:`1px dashed ${T.inputBorder}`, background:T.btnBg,
+                          color:T.textMuted, cursor:"pointer",
+                        }}
+                      >+ تمييز</button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ── 7. صورة الخلفية ── */}
+                <div>
+                  <SH label="صورة الخلفية" />
+                  <div style={{padding:"0 14px"}}>
+                    <label style={{
+                      display:"block", padding:"10px", borderRadius:8, cursor:"pointer",
+                      textAlign:"center", border:`1px dashed ${T.inputBorder}`,
+                      background:T.inputBg, fontSize:11,
+                      color: ncBgImg ? "#10b981" : T.textMuted, marginBottom:6,
+                    }}>
+                      {ncBgImg ? "✓ تم رفع الصورة" : "اختر صورة..."}
+                      <input type="file" accept="image/*" onChange={loadBg} style={{display:"none"}}/>
+                    </label>
+                    {ncBgImg && (
+                      <button onClick={()=>setNcBgImg(null)} style={{
+                        width:"100%", padding:"6px", borderRadius:6, marginBottom:14,
+                        border:`1px solid ${T.btnBorder}`, background:T.btnBg,
+                        cursor:"pointer", fontSize:11, color:T.btnText,
+                      }}>حذف الصورة</button>
+                    )}
+                  </div>
+
+                  {/* Image controls — only when image loaded */}
+                  {ncBgImg && (
+                    <div>
+                      <SH label="التحكم بالصورة"
+                        onReset={() => setNC(p => ({...p, imgScale:1, imgOffsetX:0, imgOffsetY:0, imgFit:"cover"}))}
+                      />
+                      <BtnGroup
+                        options={[["cover","تعبئة"],["contain","ملاءمة"]]}
+                        active={NC.imgFit}
+                        onSelect={v => UN("imgFit", v)}
+                      />
+                      <SliderRow label="تكبير"
+                        value={Math.round((NC.imgScale||1)*100)} min={50} max={300}
+                        display={`${Math.round((NC.imgScale||1)*100)}%`}
+                        onChange={v => UN("imgScale", v/100)}
+                      />
+                      <SliderRow label="أفقي"
+                        value={NC.imgOffsetX||0} min={-50} max={50}
+                        display={NC.imgOffsetX||0}
+                        onChange={v => UN("imgOffsetX", v)}
+                      />
+                      <SliderRow label="عمودي"
+                        value={NC.imgOffsetY||0} min={-50} max={50}
+                        display={NC.imgOffsetY||0}
+                        onChange={v => UN("imgOffsetY", v)}
+                      />
+                      <div style={{height:4}}/>
+                    </div>
+                  )}
+                </div>
+
+              </>
+            );
+          })()}
 
         </aside>
 
