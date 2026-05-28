@@ -2355,14 +2355,16 @@ function NewsCardStudio({ onBack, theme, T }) {
   const isDark     = theme === "dark";
   const ncRef      = useRef(null);
   const [NC, setNC]         = useState({...DEFAULT_NC});
-  const [ncBgImg, setNcBgImg] = useState(null);
-  const [exporting, setExporting] = useState(false);
+  const [ncBgImg,    setNcBgImg]    = useState(null);
+  const [ncBgImgSrc, setNcBgImgSrc] = useState(null); // raw data-URL for draft persistence
+  const [exporting,  setExporting]  = useState(false);
   const UN = (k, v) => setNC(p => ({ ...p, [k]: v }));
 
   /* Full card reset */
   const handleReset = useCallback(() => {
     setNC({...DEFAULT_NC, highlights:[]});
     setNcBgImg(null);
+    setNcBgImgSrc(null);
   }, []);
 
   /* PNG export */
@@ -2388,11 +2390,16 @@ function NewsCardStudio({ onBack, theme, T }) {
   const [draftName,   setDraftName]   = useState("مسودة");
   const [editingId,   setEditingId]   = useState(null);
   const [editingName, setEditingName] = useState("");
+  const [draftError,  setDraftError]  = useState("");
 
   /* Persist drafts list to localStorage whenever it changes */
   useEffect(() => {
-    try { localStorage.setItem("nc_studio_drafts", JSON.stringify(drafts)); }
-    catch {}
+    try {
+      localStorage.setItem("nc_studio_drafts", JSON.stringify(drafts));
+      setDraftError("");
+    } catch {
+      setDraftError("تعذّر الحفظ: مساحة المتصفح ممتلئة. احذف مسودات قديمة أو استخدم صوراً أصغر.");
+    }
   }, [drafts]);
 
   const saveDraft = useCallback(() => {
@@ -2403,15 +2410,24 @@ function NewsCardStudio({ onBack, theme, T }) {
       id: `d${Date.now()}`,
       name,
       savedAt,
-      nc: JSON.parse(JSON.stringify(NC)), // deep-clone (no image object)
+      nc: JSON.parse(JSON.stringify(NC)),
+      imgSrc: ncBgImgSrc || null, // base64 data-URL, or null if no image
     }, ...prev].slice(0, 20));
     setDraftName("مسودة");
-  }, [NC, draftName]);
+  }, [NC, draftName, ncBgImgSrc]);
 
   const loadDraft = useCallback((draft) => {
     setNC({ ...DEFAULT_NC, ...draft.nc,
       highlights: draft.nc.highlights || [] });
-    setNcBgImg(null); // image data not stored
+    if (draft.imgSrc) {
+      const img = new Image();
+      img.onload  = () => { setNcBgImg(img); setNcBgImgSrc(draft.imgSrc); };
+      img.onerror = () => { setNcBgImg(null); setNcBgImgSrc(null); };
+      img.src = draft.imgSrc;
+    } else {
+      setNcBgImg(null);
+      setNcBgImgSrc(null);
+    }
   }, []);
 
   const deleteDraft = useCallback((id) => {
@@ -2438,14 +2454,15 @@ function NewsCardStudio({ onBack, theme, T }) {
     else drawNewsCard(ctx, NC, ncBgImg);
   }, [NC, ncBgImg, H_CANVAS]);
 
-  /* Background image loader */
+  /* Background image loader — keeps data-URL for draft persistence */
   const loadBg = useCallback(e => {
     const file = e.target.files[0]; if (!file) return;
     const reader = new FileReader();
     reader.onload = ev => {
+      const src = ev.target.result;
       const img = new Image();
-      img.onload = () => setNcBgImg(img);
-      img.src = ev.target.result;
+      img.onload = () => { setNcBgImg(img); setNcBgImgSrc(src); };
+      img.src = src;
     };
     reader.readAsDataURL(file);
     e.target.value = "";
@@ -2798,7 +2815,7 @@ function NewsCardStudio({ onBack, theme, T }) {
                       <input type="file" accept="image/*" onChange={loadBg} style={{display:"none"}}/>
                     </label>
                     {ncBgImg && (
-                      <button onClick={()=>setNcBgImg(null)} style={{
+                      <button onClick={()=>{ setNcBgImg(null); setNcBgImgSrc(null); }} style={{
                         width:"100%", padding:"6px", borderRadius:6, marginBottom:14,
                         border:`1px solid ${T.btnBorder}`, background:T.btnBg,
                         cursor:"pointer", fontSize:11, color:T.btnText,
@@ -2842,7 +2859,7 @@ function NewsCardStudio({ onBack, theme, T }) {
                   <SH>المسودات</SH>
 
                   {/* Save row */}
-                  <div style={{display:"flex", gap:6, marginBottom:10}}>
+                  <div style={{display:"flex", gap:6, marginBottom:6}}>
                     <input
                       value={draftName}
                       onChange={e => setDraftName(e.target.value)}
@@ -2864,6 +2881,23 @@ function NewsCardStudio({ onBack, theme, T }) {
                       }}
                     >حفظ</button>
                   </div>
+
+                  {/* Storage hint */}
+                  <div style={{
+                    fontSize:10, marginBottom:8,
+                    color: isDark ? "rgba(255,255,255,.28)" : "rgba(0,0,0,.30)",
+                  }}>
+                    {ncBgImg ? "الصورة الحالية ستُحفظ مع المسودة" : "لا توجد صورة مرفقة"}
+                  </div>
+
+                  {/* Error message (e.g. storage quota exceeded) */}
+                  {draftError && (
+                    <div style={{
+                      fontSize:11, padding:"6px 8px", borderRadius:6, marginBottom:8,
+                      background: isDark ? "rgba(239,68,68,.18)" : "rgba(239,68,68,.1)",
+                      color:"#ef4444", direction:"rtl",
+                    }}>{draftError}</div>
+                  )}
 
                   {/* Draft list */}
                   {drafts.length === 0 ? (
@@ -2915,7 +2949,16 @@ function NewsCardStudio({ onBack, theme, T }) {
                               <div style={{
                                 fontSize:10,
                                 color: isDark ? "rgba(255,255,255,.35)" : "rgba(0,0,0,.38)",
-                              }}>{draft.savedAt}</div>
+                              }}>
+                                {draft.savedAt}
+                                {draft.imgSrc && (
+                                  <span style={{
+                                    marginRight:5, padding:"1px 5px", borderRadius:4,
+                                    background: isDark ? "rgba(16,185,129,.2)" : "rgba(16,185,129,.15)",
+                                    color:"#10b981", fontSize:9, fontWeight:600,
+                                  }}>صورة</span>
+                                )}
+                              </div>
                             </div>
                           )}
                           {/* Load */}
