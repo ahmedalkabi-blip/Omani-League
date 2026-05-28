@@ -1970,6 +1970,31 @@ function StudioHome({ onOpen, onOpenNews, theme, onThemeToggle, T }) {
    NEWS CARD STUDIO — placeholder shell (UI to be built here)
 ═══════════════════════════════════════════════════════════════════════════ */
 /* ── News Card canvas renderer ─────────────────────────────────────────── */
+/* ── Word-highlight renderer for RTL canvas text ───────────────────── */
+/* Draws text in default color then clips + redraws each matched phrase. */
+function drawHighlightedText(ctx, text, x, y, lineH, highlights) {
+  ctx.fillText(text, x, y);
+  if (!highlights || highlights.length === 0) return;
+  for (const { phrase, color } of highlights) {
+    if (!phrase || !phrase.trim() || !color) continue;
+    let pos = 0, idx;
+    while ((idx = text.indexOf(phrase, pos)) !== -1) {
+      const before  = text.substring(0, idx);
+      const beforeW = ctx.measureText(before).width;
+      const phraseW = ctx.measureText(phrase).width;
+      const clipX   = x - beforeW - phraseW - 6;
+      ctx.save();
+      ctx.shadowColor = "transparent"; ctx.shadowBlur = 0;
+      ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0;
+      ctx.beginPath(); ctx.rect(clipX, y - 2, phraseW + 12, lineH + 4); ctx.clip();
+      ctx.fillStyle = color;
+      ctx.fillText(text, x, y);
+      ctx.restore();
+      pos = idx + phrase.length;
+    }
+  }
+}
+
 /* ── Canvas text-wrap utility (shared by all card draw functions) ────── */
 function wrapText(ctx, text, maxW, maxLines) {
   const words = (text || "").split(" ").filter(Boolean);
@@ -2007,10 +2032,14 @@ function drawNewsCard(ctx, NC, bgImg) {
 
   /* ── 1. BASE: full-canvas image or dark editorial background ────────── */
   if (bgImg) {
-    /* Cover-fit image to full canvas */
-    const sc = Math.max(W / bgImg.naturalWidth, H / bgImg.naturalHeight);
+    const baseSc = (NC.imgFit === "contain")
+      ? Math.min(W / bgImg.naturalWidth, H / bgImg.naturalHeight)
+      : Math.max(W / bgImg.naturalWidth, H / bgImg.naturalHeight);
+    const sc = baseSc * (NC.imgScale || 1.0);
     const dw = bgImg.naturalWidth * sc, dh = bgImg.naturalHeight * sc;
-    ctx.drawImage(bgImg, Rn((W - dw) / 2), Rn((H - dh) / 2), Rn(dw), Rn(dh));
+    const ox = Rn((NC.imgOffsetX || 0) / 100 * W);
+    const oy = Rn((NC.imgOffsetY || 0) / 100 * H);
+    ctx.drawImage(bgImg, Rn((W - dw) / 2) + ox, Rn((H - dh) / 2) + oy, Rn(dw), Rn(dh));
   } else {
     /* No image: dark editorial base + upper image-zone placeholder */
     const baseBg = ctx.createLinearGradient(0, 0, 0, H);
@@ -2100,9 +2129,9 @@ function drawNewsCard(ctx, NC, bgImg) {
   ctx.fillRect(M, lineY, W - M * 2, 2);
 
   /* ── 6. HEADLINE — large, bold, RTL wrapped ────────────────────────── */
-  const headSz   = Rn(W * 0.058);        // ~63 px — professional, not overcrowded
+  const headSz   = Rn(W * 0.058 * (NC.headSzMult || 1.0));
   const headLH   = Rn(headSz * 1.42);
-  const maxTxtW  = W - (M + 20) * 2;    // slightly narrower for fewer words/line
+  const maxTxtW  = W - (M + 20) * 2;
   const headMaxL = 4;
 
   ctx.save();
@@ -2112,14 +2141,17 @@ function drawNewsCard(ctx, NC, bgImg) {
   ctx.shadowColor = "rgba(0,0,0,.7)"; ctx.shadowBlur = 22;
   const headLines = wrapText(ctx, NC.headline || "العنوان الرئيسي", maxTxtW, headMaxL);
   let headY = lineY + 60;
-  for (const ln of headLines) { ctx.fillText(ln, W - M, headY); headY += headLH; }
+  for (const ln of headLines) {
+    drawHighlightedText(ctx, ln, W - M, headY, headLH, NC.highlights);
+    headY += headLH;
+  }
   ctx.restore();
   const afterHead = headY;
 
   /* ── 7. SUBHEADLINE — smaller, muted, max 3 lines ──────────────────── */
   const textBottom = H - FOOT_H - 32;      // don't let text enter footer zone
   if (NC.subheadline && afterHead + 20 < textBottom) {
-    const subSz  = Rn(W * 0.032);         // ~35 px — smaller, doesn't compete
+    const subSz  = Rn(W * 0.032 * (NC.subSzMult || 1.0));
     const subLH  = Rn(subSz * 1.65);
     const subMax = Math.min(3, Math.floor((textBottom - afterHead - 36) / subLH));
     if (subMax > 0) {
@@ -2130,7 +2162,10 @@ function drawNewsCard(ctx, NC, bgImg) {
       ctx.shadowColor = "rgba(0,0,0,.5)"; ctx.shadowBlur = 12;
       const subLines = wrapText(ctx, NC.subheadline, maxTxtW, subMax);
       let subY = afterHead + 24;
-      for (const ln of subLines) { ctx.fillText(ln, W - M, subY); subY += subLH; }
+      for (const ln of subLines) {
+        drawHighlightedText(ctx, ln, W - M, subY, subLH, NC.highlights);
+        subY += subLH;
+      }
       ctx.restore();
     }
   }
@@ -2170,11 +2205,16 @@ function drawLongTextCard(ctx, NC, bgImg) {
   const imgH    = Rn(H * imgFrac);
 
   if (bgImg) {
-    const sc = Math.max(W / bgImg.naturalWidth, imgH / bgImg.naturalHeight);
+    const baseSc = (NC.imgFit === "contain")
+      ? Math.min(W / bgImg.naturalWidth, imgH / bgImg.naturalHeight)
+      : Math.max(W / bgImg.naturalWidth, imgH / bgImg.naturalHeight);
+    const sc = baseSc * (NC.imgScale || 1.0);
     const dw = bgImg.naturalWidth * sc, dh = bgImg.naturalHeight * sc;
+    const ox = Rn((NC.imgOffsetX || 0) / 100 * W);
+    const oy = Rn((NC.imgOffsetY || 0) / 100 * imgH);
     ctx.save();
     ctx.beginPath(); ctx.rect(0, 0, W, imgH); ctx.clip();
-    ctx.drawImage(bgImg, Rn((W - dw) / 2), 0, Rn(dw), Rn(dh));
+    ctx.drawImage(bgImg, Rn((W - dw) / 2) + ox, Rn((imgH - dh) / 2) + oy, Rn(dw), Rn(dh));
     ctx.restore();
     /* Soft fade at bottom of image into white */
     const fade = ctx.createLinearGradient(0, imgH - 90, 0, imgH);
@@ -2222,7 +2262,7 @@ function drawLongTextCard(ctx, NC, bgImg) {
   curY += 30;
 
   /* 4. Headline */
-  const headSz  = Rn(W * (isStory ? 0.060 : 0.058));
+  const headSz  = Rn(W * (isStory ? 0.060 : 0.058) * (NC.headSzMult || 1.0));
   const headLH  = Rn(headSz * 1.45);
   const maxTxtW = W - M * 2;
   ctx.save();
@@ -2230,7 +2270,10 @@ function drawLongTextCard(ctx, NC, bgImg) {
   ctx.fillStyle = DARK; ctx.textAlign = "right";
   ctx.textBaseline = "top"; ctx.direction = "rtl";
   const headLines = wrapText(ctx, NC.headline || "العنوان الرئيسي", maxTxtW, 3);
-  for (const ln of headLines) { ctx.fillText(ln, W - M, curY); curY += headLH; }
+  for (const ln of headLines) {
+    drawHighlightedText(ctx, ln, W - M, curY, headLH, NC.highlights);
+    curY += headLH;
+  }
   ctx.restore();
   curY += 18;
 
@@ -2243,7 +2286,9 @@ function drawLongTextCard(ctx, NC, bgImg) {
   const FOOT_H    = 90;
   const textBottom = H - FOOT_H - 40;
   if (NC.body && curY < textBottom) {
-    const bodySz  = isStory ? Rn(W * 0.036) : Rn(W * 0.033);
+    const bodySz  = isStory
+      ? Rn(W * 0.036 * (NC.bodySzMult || 1.0))
+      : Rn(W * 0.033 * (NC.bodySzMult || 1.0));
     const bodyLH  = Rn(bodySz * 1.78);
     const maxBody = Math.max(1, Math.floor((textBottom - curY) / bodyLH));
     ctx.save();
@@ -2251,7 +2296,10 @@ function drawLongTextCard(ctx, NC, bgImg) {
     ctx.fillStyle = BODY_C; ctx.textAlign = "right";
     ctx.textBaseline = "top"; ctx.direction = "rtl";
     const bodyLines = wrapText(ctx, NC.body, maxTxtW, maxBody);
-    for (const ln of bodyLines) { ctx.fillText(ln, W - M, curY); curY += bodyLH; }
+    for (const ln of bodyLines) {
+      drawHighlightedText(ctx, ln, W - M, curY, bodyLH, NC.highlights);
+      curY += bodyLH;
+    }
     ctx.restore();
   }
 
@@ -2281,6 +2329,14 @@ function NewsCardStudio({ onBack, theme, T }) {
     gradient:    "strong",
     template:    "image",
     cardSize:    "portrait",
+    imgScale:    1.0,
+    imgOffsetX:  0,
+    imgOffsetY:  0,
+    imgFit:      "cover",
+    headSzMult:  1.0,
+    subSzMult:   1.0,
+    bodySzMult:  1.0,
+    highlights:  [],
   });
   const [ncBgImg, setNcBgImg] = useState(null);
   const UN = (k, v) => setNC(p => ({ ...p, [k]: v }));
@@ -2354,7 +2410,7 @@ function NewsCardStudio({ onBack, theme, T }) {
 
         {/* LEFT: controls */}
         <aside style={{
-          width:272, flexShrink:0, overflowY:"auto", padding:"16px 14px",
+          width:284, flexShrink:0, overflowY:"auto", padding:"16px 14px",
           borderLeft:`1px solid ${T.divider}`, background:T.sidebarBg,
           display:"flex", flexDirection:"column", gap:14,
         }}>
@@ -2411,6 +2467,30 @@ function NewsCardStudio({ onBack, theme, T }) {
             </div>
           )}
 
+          {/* ── Font sizes ── */}
+          <div>
+            <div style={{fontSize:10, fontWeight:700, color:T.secTitle, marginBottom:6, letterSpacing:".04em"}}>أحجام النص</div>
+            <div style={{display:"flex", flexDirection:"column", gap:5}}>
+              {[
+                ["العنوان", "headSzMult"],
+                ...(NC.template === "image"    ? [["الفرعي","subSzMult"]]  : []),
+                ...(NC.template === "longtext" ? [["النص",  "bodySzMult"]] : []),
+              ].map(([lbl, key]) => (
+                <div key={key} style={{display:"flex", alignItems:"center", gap:6}}>
+                  <span style={{fontSize:10, color:T.textMuted, minWidth:36, direction:"rtl", textAlign:"right"}}>{lbl}</span>
+                  <input type="range" min={60} max={150} step={1}
+                    value={Math.round((NC[key]||1)*100)}
+                    onChange={e => UN(key, Number(e.target.value)/100)}
+                    style={{flex:1, accentColor:T.accent, cursor:"pointer"}}
+                  />
+                  <span style={{fontSize:10, color:T.textMuted, width:30, textAlign:"left"}}>
+                    {Math.round((NC[key]||1)*100)}%
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
           {/* ── Category ── */}
           <div>
             <div style={{fontSize:10, fontWeight:700, color:T.secTitle, marginBottom:5, letterSpacing:".04em"}}>التصنيف</div>
@@ -2448,6 +2528,63 @@ function NewsCardStudio({ onBack, theme, T }) {
             </div>
           )}
 
+          {/* ── Word highlights ── */}
+          <div>
+            <div style={{fontSize:10, fontWeight:700, color:T.secTitle, marginBottom:6, letterSpacing:".04em"}}>تمييز الكلمات</div>
+            {NC.highlights.map((h, i) => (
+              <div key={i} style={{display:"flex", gap:4, marginBottom:5, alignItems:"center"}}>
+                <input
+                  value={h.phrase}
+                  onChange={e => {
+                    const n = [...NC.highlights];
+                    n[i] = {...n[i], phrase: e.target.value};
+                    UN("highlights", n);
+                  }}
+                  placeholder="الكلمة أو العبارة"
+                  dir="rtl"
+                  style={{...inp, flex:1, fontSize:11, padding:"5px 7px"}}
+                />
+                <input type="color" value={h.color}
+                  onChange={e => {
+                    const n = [...NC.highlights];
+                    n[i] = {...n[i], color: e.target.value};
+                    UN("highlights", n);
+                  }}
+                  style={{width:26, height:26, padding:2, border:"none", borderRadius:4,
+                    cursor:"pointer", flexShrink:0, background:"none"}}
+                />
+                <button
+                  onClick={() => UN("highlights", NC.highlights.filter((_,j)=>j!==i))}
+                  style={{
+                    width:22, height:22, borderRadius:4, flexShrink:0,
+                    border:`1px solid ${T.inputBorder}`, background:T.btnBg,
+                    color:T.textMuted, cursor:"pointer", fontSize:14,
+                    display:"flex", alignItems:"center", justifyContent:"center", padding:0,
+                  }}
+                >×</button>
+              </div>
+            ))}
+            <div style={{display:"flex", gap:5, alignItems:"center"}}>
+              {["#e8c84a","#ef4444","#22c55e","#3b82f6","#ffffff"].map(clr=>(
+                <button key={clr} title={clr}
+                  onClick={() => UN("highlights", [...NC.highlights, {phrase:"", color:clr}])}
+                  style={{
+                    width:20, height:20, borderRadius:4, background:clr, flexShrink:0,
+                    border:"1px solid rgba(0,0,0,.20)", cursor:"pointer", padding:0,
+                  }}
+                />
+              ))}
+              <button
+                onClick={() => UN("highlights", [...NC.highlights, {phrase:"", color:"#e8c84a"}])}
+                style={{
+                  flex:1, padding:"3px 6px", borderRadius:4, fontSize:10, fontWeight:700,
+                  border:`1px dashed ${T.inputBorder}`, background:T.btnBg,
+                  color:T.textMuted, cursor:"pointer",
+                }}
+              >+ تمييز</button>
+            </div>
+          </div>
+
           {/* ── Footer text ── */}
           <div>
             <div style={{fontSize:10, fontWeight:700, color:T.secTitle, marginBottom:5, letterSpacing:".04em"}}>الموقع / النص السفلي</div>
@@ -2473,6 +2610,54 @@ function NewsCardStudio({ onBack, theme, T }) {
               }}>حذف الصورة</button>
             )}
           </div>
+
+          {/* ── Image controls (only when an image is loaded) ── */}
+          {ncBgImg && (
+            <div>
+              <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:6}}>
+                <div style={{fontSize:10, fontWeight:700, color:T.secTitle, letterSpacing:".04em"}}>التحكم بالصورة</div>
+                <button
+                  onClick={() => setNC(p => ({...p, imgScale:1, imgOffsetX:0, imgOffsetY:0, imgFit:"cover"}))}
+                  style={{
+                    fontSize:9, fontWeight:700, padding:"2px 7px", borderRadius:4,
+                    border:`1px solid ${T.inputBorder}`, background:T.btnBg,
+                    color:T.textMuted, cursor:"pointer",
+                  }}
+                >إعادة ضبط</button>
+              </div>
+              {/* Fit mode */}
+              <div style={{display:"flex", gap:6, marginBottom:8}}>
+                {[["cover","تعبئة"],["contain","ملاءمة"]].map(([val,lbl])=>(
+                  <button key={val} onClick={()=>UN("imgFit",val)} style={{
+                    flex:1, padding:"5px 4px", borderRadius:6, cursor:"pointer",
+                    fontSize:10, fontWeight:700,
+                    border:`1px solid ${NC.imgFit===val ? T.accent : T.inputBorder}`,
+                    background: NC.imgFit===val ? T.accent : T.btnBg,
+                    color: NC.imgFit===val ? T.accentFg : T.btnText,
+                  }}>{lbl}</button>
+                ))}
+              </div>
+              {/* Scale + position sliders */}
+              <div style={{display:"flex", flexDirection:"column", gap:6}}>
+                {[
+                  ["تكبير",  "imgScale",   50,  300, Math.round((NC.imgScale||1)*100),  v => v/100],
+                  ["أفقي",   "imgOffsetX", -50,  50, NC.imgOffsetX||0,                  v => v],
+                  ["عمودي",  "imgOffsetY", -50,  50, NC.imgOffsetY||0,                  v => v],
+                ].map(([lbl, key, mn, mx, disp, toVal]) => (
+                  <div key={key} style={{display:"flex", alignItems:"center", gap:6}}>
+                    <span style={{fontSize:10, color:T.textMuted, minWidth:30, direction:"rtl", textAlign:"right"}}>{lbl}</span>
+                    <input type="range" min={mn} max={mx} step={1} value={disp}
+                      onChange={e => UN(key, toVal(Number(e.target.value)))}
+                      style={{flex:1, accentColor:T.accent, cursor:"pointer"}}
+                    />
+                    <span style={{fontSize:10, color:T.textMuted, width:34, textAlign:"left"}}>
+                      {key==="imgScale" ? `${disp}%` : disp}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
         </aside>
 
