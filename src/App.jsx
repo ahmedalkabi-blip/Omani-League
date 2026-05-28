@@ -2380,6 +2380,50 @@ function NewsCardStudio({ onBack, theme, T }) {
     }, 80);
   }, []);
 
+  /* ── Draft saving (localStorage) ─────────────────────────────────── */
+  const [drafts, setDrafts] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("nc_studio_drafts") || "[]"); }
+    catch { return []; }
+  });
+  const [draftName,   setDraftName]   = useState("مسودة");
+  const [editingId,   setEditingId]   = useState(null);
+  const [editingName, setEditingName] = useState("");
+
+  /* Persist drafts list to localStorage whenever it changes */
+  useEffect(() => {
+    try { localStorage.setItem("nc_studio_drafts", JSON.stringify(drafts)); }
+    catch {}
+  }, [drafts]);
+
+  const saveDraft = useCallback(() => {
+    const name = draftName.trim() || "مسودة";
+    const savedAt = new Date().toLocaleDateString("ar-SA",
+      {day:"numeric", month:"short"});
+    setDrafts(prev => [{
+      id: `d${Date.now()}`,
+      name,
+      savedAt,
+      nc: JSON.parse(JSON.stringify(NC)), // deep-clone (no image object)
+    }, ...prev].slice(0, 20));
+    setDraftName("مسودة");
+  }, [NC, draftName]);
+
+  const loadDraft = useCallback((draft) => {
+    setNC({ ...DEFAULT_NC, ...draft.nc,
+      highlights: draft.nc.highlights || [] });
+    setNcBgImg(null); // image data not stored
+  }, []);
+
+  const deleteDraft = useCallback((id) => {
+    setDrafts(prev => prev.filter(d => d.id !== id));
+  }, []);
+
+  const renameDraft = useCallback((id, name) => {
+    setDrafts(prev => prev.map(d =>
+      d.id === id ? {...d, name: name.trim() || d.name} : d));
+    setEditingId(null);
+  }, []);
+
   /* Canvas height depends on template + cardSize */
   const H_CANVAS = NC.template === "longtext"
     ? (NC.cardSize === "square" ? 1080 : NC.cardSize === "story" ? 1920 : 1350)
@@ -2789,6 +2833,114 @@ function NewsCardStudio({ onBack, theme, T }) {
                         onChange={v => UN("imgOffsetY", v)}
                       />
                       <div style={{height:4}}/>
+                    </div>
+                  )}
+                </div>
+
+                {/* ── 9. المسودات ── */}
+                <div style={{borderTop:`1px solid ${isDark?"rgba(255,255,255,.07)":"rgba(0,0,0,.07)"}`, paddingTop:14}}>
+                  <SH>المسودات</SH>
+
+                  {/* Save row */}
+                  <div style={{display:"flex", gap:6, marginBottom:10}}>
+                    <input
+                      value={draftName}
+                      onChange={e => setDraftName(e.target.value)}
+                      placeholder="اسم المسودة"
+                      style={{
+                        flex:1, fontSize:12, padding:"5px 8px",
+                        borderRadius:6, border:`1px solid ${isDark?"rgba(255,255,255,.14)":"rgba(0,0,0,.14)"}`,
+                        background: isDark ? "rgba(255,255,255,.06)" : "rgba(0,0,0,.04)",
+                        color: isDark ? "#e8e8f0" : "#1a1a2e",
+                        outline:"none", direction:"rtl",
+                      }}
+                    />
+                    <button
+                      onClick={saveDraft}
+                      style={{
+                        padding:"5px 12px", fontSize:12, borderRadius:6,
+                        border:"none", cursor:"pointer", whiteSpace:"nowrap",
+                        background:"#3b82f6", color:"#fff", fontWeight:600,
+                      }}
+                    >حفظ</button>
+                  </div>
+
+                  {/* Draft list */}
+                  {drafts.length === 0 ? (
+                    <div style={{
+                      fontSize:11, textAlign:"center", padding:"12px 0",
+                      color: isDark ? "rgba(255,255,255,.28)" : "rgba(0,0,0,.30)",
+                    }}>لا توجد مسودات محفوظة</div>
+                  ) : (
+                    <div style={{
+                      display:"flex", flexDirection:"column", gap:5,
+                      maxHeight:220, overflowY:"auto", paddingLeft:2, paddingRight:2,
+                    }}>
+                      {drafts.map(draft => (
+                        <div key={draft.id} style={{
+                          display:"flex", alignItems:"center", gap:5,
+                          background: isDark ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.04)",
+                          borderRadius:7, padding:"6px 8px",
+                          border:`1px solid ${isDark?"rgba(255,255,255,.07)":"rgba(0,0,0,.07)"}`,
+                        }}>
+                          {/* Name / inline rename */}
+                          {editingId === draft.id ? (
+                            <input
+                              autoFocus
+                              defaultValue={draft.name}
+                              onBlur={e => renameDraft(draft.id, e.target.value)}
+                              onKeyDown={e => {
+                                if (e.key === "Enter") renameDraft(draft.id, e.target.value);
+                                if (e.key === "Escape") setEditingId(null);
+                              }}
+                              style={{
+                                flex:1, fontSize:11, padding:"3px 6px",
+                                borderRadius:5, border:`1px solid #3b82f6`,
+                                background: isDark ? "rgba(255,255,255,.08)" : "#fff",
+                                color: isDark ? "#e8e8f0" : "#1a1a2e",
+                                outline:"none", direction:"rtl",
+                              }}
+                            />
+                          ) : (
+                            <div style={{flex:1, minWidth:0}}>
+                              <div
+                                onClick={() => { setEditingId(draft.id); }}
+                                title="انقر للتعديل"
+                                style={{
+                                  fontSize:12, fontWeight:600, cursor:"text",
+                                  color: isDark ? "#e8e8f0" : "#1a1a2e",
+                                  whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis",
+                                }}
+                              >{draft.name}</div>
+                              <div style={{
+                                fontSize:10,
+                                color: isDark ? "rgba(255,255,255,.35)" : "rgba(0,0,0,.38)",
+                              }}>{draft.savedAt}</div>
+                            </div>
+                          )}
+                          {/* Load */}
+                          <button
+                            onClick={() => loadDraft(draft)}
+                            style={{
+                              padding:"3px 8px", fontSize:11, borderRadius:5,
+                              border:"none", cursor:"pointer", whiteSpace:"nowrap",
+                              background: isDark ? "rgba(59,130,246,.25)" : "rgba(59,130,246,.15)",
+                              color:"#3b82f6", fontWeight:600,
+                            }}
+                          >تحميل</button>
+                          {/* Delete */}
+                          <button
+                            onClick={() => deleteDraft(draft.id)}
+                            style={{
+                              width:22, height:22, display:"flex", alignItems:"center",
+                              justifyContent:"center", borderRadius:5, border:"none",
+                              cursor:"pointer", flexShrink:0,
+                              background: isDark ? "rgba(239,68,68,.18)" : "rgba(239,68,68,.12)",
+                              color:"#ef4444", fontWeight:700, fontSize:13, lineHeight:1,
+                            }}
+                          >×</button>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
