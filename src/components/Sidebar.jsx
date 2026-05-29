@@ -256,6 +256,8 @@ export default function Sidebar({ state, onUpdate, onImageLoad, onImageDelete, o
               ))}
             </div>
           </Field>
+          {state.tpl === "finalscore" && field("الاستحواذ (مضيف - ضيف)", "possession", "55 - 45")}
+          {state.tpl === "finalscore" && field("تسديدات على المرمى", "shots", "8 - 4")}
           {state.tpl === "motm" && field("رجل المباراة", "motm", "اسم اللاعب")}
         </Section>
 
