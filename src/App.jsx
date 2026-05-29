@@ -2151,6 +2151,115 @@ function resolveFooterItems(NC) {
     .map(p => ({ id: p.id, text: NC[PLAT_FIELD[p.id]] }));
 }
 
+/*
+ * Compact footer: website  [social icons] shortHandle  [video icons] longName
+ * Automatically wraps to two lines when content exceeds maxRightX.
+ */
+function drawFooterCompact(ctx, NC, items, startX, footY, footH, maxRightX, iconSz, fontSz, Rn) {
+  const SOCIAL_IDS = ["instagram","twitter","tiktok"];
+  const VIDEO_IDS  = ["facebook","youtube"];
+  const iconGap = 3, halfGap = 7, secGap = 20;
+  const footMid = footY + footH / 2;
+
+  ctx.font = `400 ${Rn(fontSz)}px 'Cairo','Tajawal',sans-serif`;
+  ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.direction = "ltr";
+
+  const webItem     = items.find(i => i.id === "website");
+  const socialItems = items.filter(i => SOCIAL_IDS.includes(i.id));
+  const videoItems  = items.filter(i => VIDEO_IDS.includes(i.id));
+
+  const groupW = (grp, label) => {
+    if (grp.length === 0) return 0;
+    let w = grp.length * (iconSz + iconGap) - iconGap;
+    if (label) w += halfGap + ctx.measureText(label).width;
+    return w;
+  };
+
+  const webW    = webItem ? ctx.measureText(webItem.text).width + secGap : 0;
+  const socialW = socialItems.length > 0 ? groupW(socialItems, NC.brandShortHandle) + secGap : 0;
+  const videoW  = videoItems.length > 0  ? groupW(videoItems, NC.brandLongName)              : 0;
+  const totalW  = webW + socialW + videoW;
+  const maxW    = maxRightX - startX;
+
+  /* Draw one icon cluster then its text label; returns the ending X */
+  const drawGroup = (grp, label, x, y) => {
+    for (const item of grp) {
+      drawPlatformBadge(ctx, item.id, x, y, iconSz);
+      x += iconSz + iconGap;
+    }
+    if (grp.length > 0 && label) {
+      x -= iconGap; x += halfGap;
+      ctx.fillText(label, x, y);
+      x += ctx.measureText(label).width;
+    }
+    return x;
+  };
+
+  if (totalW <= maxW || videoItems.length === 0) {
+    /* Single line */
+    let x = startX;
+    if (webItem) {
+      ctx.fillText(webItem.text, x, footMid);
+      x += ctx.measureText(webItem.text).width + secGap;
+    }
+    if (socialItems.length > 0) {
+      x = drawGroup(socialItems, NC.brandShortHandle, x, footMid);
+      if (videoItems.length > 0) x += secGap;
+    }
+    if (videoItems.length > 0) {
+      drawGroup(videoItems, NC.brandLongName, x, footMid);
+    }
+  } else {
+    /* Two lines: line1 = website + social, line2 = video */
+    const line1Y = footY + footH * 0.28;
+    const line2Y = footY + footH * 0.72;
+    let x = startX;
+    if (webItem) {
+      ctx.fillText(webItem.text, x, line1Y);
+      x += ctx.measureText(webItem.text).width + secGap;
+    }
+    if (socialItems.length > 0) {
+      drawGroup(socialItems, NC.brandShortHandle, x, line1Y);
+    }
+    drawGroup(videoItems, NC.brandLongName, startX, line2Y);
+  }
+}
+
+/*
+ * Detailed footer: [icon] text  [icon] text  ...
+ * Wraps to two lines when more than 3 items or content exceeds maxRightX.
+ */
+function drawFooterDetailed(ctx, items, startX, footY, footH, maxRightX, iconSz, fontSz, Rn) {
+  if (items.length === 0) return;
+  const iconGap = 4, itemGap = 10;
+  const footMid = footY + footH / 2;
+
+  ctx.font = `400 ${Rn(fontSz)}px 'Cairo','Tajawal',sans-serif`;
+  ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.direction = "ltr";
+
+  let totalW = 0;
+  for (const item of items) {
+    totalW += iconSz + iconGap + ctx.measureText(item.text).width + itemGap;
+  }
+
+  const drawItems = (subset, x, y) => {
+    for (const item of subset) {
+      drawPlatformBadge(ctx, item.id, x, y, iconSz);
+      x += iconSz + iconGap;
+      ctx.fillText(item.text, x, y);
+      x += ctx.measureText(item.text).width + itemGap;
+    }
+  };
+
+  if (totalW <= maxRightX - startX || items.length <= 3) {
+    drawItems(items, startX, footMid);
+  } else {
+    const half = Math.ceil(items.length / 2);
+    drawItems(items.slice(0, half), startX, footY + footH * 0.28);
+    drawItems(items.slice(half),    startX, footY + footH * 0.72);
+  }
+}
+
 /* ── Style presets ──────────────────────────────────────────────────── */
 const NC_PRESETS = {
   default:   { label:"الافتراضي",  sw:["#e8c84a","#ffffff","#2a2a38"], gradient:"strong", accentColor:"#e8c84a", headColor:"#ffffff", subColor:"rgba(255,255,255,.55)", bodyColor:"#2a2a38" },
@@ -2420,50 +2529,20 @@ function drawNewsCard(ctx, NC, bgImg, brandLogo = null) {
     }
 
     ctx.fillStyle = hexAlpha(NC.headColor || "#ffffff", 0.55);
-    ctx.textBaseline = "middle"; ctx.direction = "ltr";
 
-    const allItems   = resolveFooterItems(NC);
-    const SOCIAL_IDS = ["instagram","twitter","tiktok"];
-    const VIDEO_IDS  = ["facebook","youtube"];
+    /* Reserve right space for header title so social content doesn't overlap */
+    ctx.font = `700 ${Rn(22)}px 'Cairo','Tajawal',sans-serif`;
+    const titleW = NC.brandHeaderTitle ? ctx.measureText(NC.brandHeaderTitle).width + 24 : 0;
+    const maxContentRight = W - M - titleW;
+
+    const allItems = resolveFooterItems(NC);
 
     if (NC.brandFooterMode === "detailed") {
-      const iconSz = 18, iconGap = 5, itemGap = 12;
-      ctx.font = `400 ${Rn(17)}px 'Cairo','Tajawal',sans-serif`;
-      ctx.textAlign = "left";
-      let posX = contentLeft;
-      for (const item of allItems) {
-        drawPlatformBadge(ctx, item.id, posX, footMid, iconSz);
-        posX += iconSz + iconGap;
-        ctx.fillText(item.text, posX, footMid);
-        posX += ctx.measureText(item.text).width + itemGap;
-      }
+      ctx.fillStyle = hexAlpha(NC.headColor || "#ffffff", 0.55);
+      drawFooterDetailed(ctx, allItems, contentLeft, footY, FOOT_H, maxContentRight, 18, 17, Rn);
     } else {
-      const iconSz = 18, iconGap = 4, secGap = 18;
-      ctx.font = `400 ${Rn(17)}px 'Cairo','Tajawal',sans-serif`;
-      ctx.textAlign = "left";
-      let posX = contentLeft;
-
-      const webItem   = allItems.find(i => i.id === "website");
-      const iconItems = allItems.filter(i => i.id !== "website");
-      const hasSocial = iconItems.some(i => SOCIAL_IDS.includes(i.id));
-      const hasVideo  = iconItems.some(i => VIDEO_IDS.includes(i.id));
-
-      if (webItem) {
-        ctx.fillText(webItem.text, posX, footMid);
-        posX += ctx.measureText(webItem.text).width + secGap;
-      }
-      for (const item of iconItems) {
-        drawPlatformBadge(ctx, item.id, posX, footMid, iconSz);
-        posX += iconSz + iconGap;
-      }
-      if (iconItems.length > 0) { posX -= iconGap; posX += secGap; }
-      if (hasSocial && NC.brandShortHandle) {
-        ctx.fillText(NC.brandShortHandle, posX, footMid);
-        posX += ctx.measureText(NC.brandShortHandle).width + secGap;
-      }
-      if (hasVideo && NC.brandLongName) {
-        ctx.fillText(NC.brandLongName, posX, footMid);
-      }
+      ctx.fillStyle = hexAlpha(NC.headColor || "#ffffff", 0.55);
+      drawFooterCompact(ctx, NC, allItems, contentLeft, footY, FOOT_H, maxContentRight, 18, 17, Rn);
     }
 
     /* Header title — bottom-right */
@@ -2639,55 +2718,27 @@ function drawLongTextCard(ctx, NC, bgImg, brandLogo = null) {
 
   if (NC.showBranding) {
     ctx.save();
-    ctx.fillStyle = MUTED; ctx.textBaseline = "middle"; ctx.direction = "ltr";
+    ctx.fillStyle = MUTED;
 
-    const allItems   = resolveFooterItems(NC);
-    const SOCIAL_IDS = ["instagram","twitter","tiktok"];
-    const VIDEO_IDS  = ["facebook","youtube"];
+    /* Reserve right space for date so social content doesn't overlap */
+    ctx.font = `400 ${Rn(17)}px 'Cairo','Tajawal',sans-serif`;
+    const dateW = NC.date ? ctx.measureText(String(NC.date)).width + 20 : 0;
+    const maxContentRight = W - M - dateW;
+
+    const allItems = resolveFooterItems(NC);
 
     if (NC.brandFooterMode === "detailed") {
-      const iconSz = 16, iconGap = 4, itemGap = 10;
-      ctx.font = `400 ${Rn(15)}px 'Cairo','Tajawal',sans-serif`;
-      ctx.textAlign = "left";
-      let posX = M;
-      for (const item of allItems) {
-        drawPlatformBadge(ctx, item.id, posX, footMid, iconSz);
-        posX += iconSz + iconGap;
-        ctx.fillText(item.text, posX, footMid);
-        posX += ctx.measureText(item.text).width + itemGap;
-      }
+      ctx.fillStyle = MUTED;
+      drawFooterDetailed(ctx, allItems, M, footY, FOOT_H, maxContentRight, 16, 15, Rn);
     } else {
-      const iconSz = 16, iconGap = 4, secGap = 16;
-      ctx.font = `400 ${Rn(16)}px 'Cairo','Tajawal',sans-serif`;
-      ctx.textAlign = "left";
-      let posX = M;
-
-      const webItem   = allItems.find(i => i.id === "website");
-      const iconItems = allItems.filter(i => i.id !== "website");
-      const hasSocial = iconItems.some(i => SOCIAL_IDS.includes(i.id));
-      const hasVideo  = iconItems.some(i => VIDEO_IDS.includes(i.id));
-
-      if (webItem) {
-        ctx.fillText(webItem.text, posX, footMid);
-        posX += ctx.measureText(webItem.text).width + secGap;
-      }
-      for (const item of iconItems) {
-        drawPlatformBadge(ctx, item.id, posX, footMid, iconSz);
-        posX += iconSz + iconGap;
-      }
-      if (iconItems.length > 0) { posX -= iconGap; posX += secGap; }
-      if (hasSocial && NC.brandShortHandle) {
-        ctx.fillText(NC.brandShortHandle, posX, footMid);
-        posX += ctx.measureText(NC.brandShortHandle).width + secGap;
-      }
-      if (hasVideo && NC.brandLongName) {
-        ctx.fillText(NC.brandLongName, posX, footMid);
-      }
+      ctx.fillStyle = MUTED;
+      drawFooterCompact(ctx, NC, allItems, M, footY, FOOT_H, maxContentRight, 16, 16, Rn);
     }
 
     /* Right: date */
     ctx.font = `400 ${Rn(17)}px 'Cairo','Tajawal',sans-serif`;
-    ctx.textAlign = "right"; ctx.direction = "rtl";
+    ctx.fillStyle = MUTED;
+    ctx.textAlign = "right"; ctx.direction = "rtl"; ctx.textBaseline = "middle";
     ctx.fillText(String(NC.date || ""), W - M, footMid);
     ctx.restore();
   } else {
