@@ -1979,7 +1979,17 @@ function hexAlpha(hex, a) {
   return `rgba(${r},${g},${b},${a})`;
 }
 
-/* ── Social platform icon badge for canvas footer ─────────────────────── */
+/* Returns black or white text for the best contrast against a hex background */
+function contrastText(hex) {
+  const h = (hex || "#ffffff").replace("#", "");
+  const r = parseInt(h.slice(0,2),16) / 255 || 0;
+  const g = parseInt(h.slice(2,4),16) / 255 || 0;
+  const b = parseInt(h.slice(4,6),16) / 255 || 0;
+  const L = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  return L > 0.42 ? "#000000" : "#ffffff";
+}
+
+
 /* Draws a sz×sz rounded-square badge at (x, cy-sz/2) for the given platform */
 function drawPlatformBadge(ctx, platform, x, cy, sz) {
   const hy = cy - sz / 2;
@@ -2168,10 +2178,12 @@ function drawNewsCard(ctx, NC, bgImg) {
     const oy = Rn((NC.imgOffsetY || 0) / 100 * H);
     ctx.drawImage(bgImg, Rn((W - dw) / 2) + ox, Rn((H - dh) / 2) + oy, Rn(dw), Rn(dh));
   } else {
-    /* No image: dark editorial base + upper image-zone placeholder */
+    /* No image: use bodyColor as base so presets tint the whole card */
+    const baseClr = NC.bodyColor || "#0d0d16";
     const baseBg = ctx.createLinearGradient(0, 0, 0, H);
-    baseBg.addColorStop(0, "#141921");
-    baseBg.addColorStop(1, "#08090f");
+    baseBg.addColorStop(0, hexAlpha(baseClr, 0.72));
+    baseBg.addColorStop(1, hexAlpha(baseClr, 0.98));
+    ctx.fillStyle = "#000"; ctx.fillRect(0, 0, W, H); // true-black foundation
     ctx.fillStyle = baseBg; ctx.fillRect(0, 0, W, H);
 
     /* Image zone: slightly lighter rectangle, upper 62% */
@@ -2211,12 +2223,15 @@ function drawNewsCard(ctx, NC, bgImg) {
     const botStart = gradStyle === "soft" ? 0.56 : 0.50;
     const botEnd   = gradStyle === "soft" ? 0.86 : 0.80;
     const maxAlpha = gradStyle === "soft" ? ".82" : ".97";
+    /* Bottom overlay tinted by bodyColor so each preset has a distinct mood */
+    const botClr   = NC.bodyColor || "#000000";
+    const botSolid = hexAlpha(botClr, parseFloat(maxAlpha));
     const botOv = ctx.createLinearGradient(0, H * botStart, 0, H * botEnd);
-    botOv.addColorStop(0, "rgba(0,0,0,0)");
-    botOv.addColorStop(1, `rgba(0,0,0,${maxAlpha})`);
+    botOv.addColorStop(0, hexAlpha(botClr, 0));
+    botOv.addColorStop(1, botSolid);
     ctx.fillStyle = botOv;
     ctx.fillRect(0, Rn(H * botStart), W, Rn(H * (botEnd - botStart)));
-    ctx.fillStyle = `rgba(0,0,0,${maxAlpha})`;
+    ctx.fillStyle = botSolid;
     ctx.fillRect(0, Rn(H * botEnd), W, H - Rn(H * botEnd));
   }
 
@@ -2232,7 +2247,7 @@ function drawNewsCard(ctx, NC, bgImg) {
   ctx.beginPath(); ctx.roundRect(catX, catY, catPW, catPH, catPH / 2);
   ctx.fillStyle = ac; ctx.fill();
   ctx.shadowBlur = 0;
-  ctx.fillStyle = "#000"; ctx.textAlign = "center";
+  ctx.fillStyle = contrastText(ac); ctx.textAlign = "center";
   ctx.fillText(cat, catX + catPW / 2, catY + catPH / 2);
   ctx.restore();
 
@@ -2303,9 +2318,9 @@ function drawNewsCard(ctx, NC, bgImg) {
   ctx.save();
   ctx.strokeStyle = hexAlpha(ac, .35); ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(M, footY); ctx.lineTo(W - M, footY); ctx.stroke();
-  /* Website / footer text */
+  /* Website / footer text — tinted with headColor for preset consistency */
   ctx.font = `400 ${Rn(19)}px 'Cairo','Tajawal',sans-serif`;
-  ctx.fillStyle = "rgba(255,255,255,.28)";
+  ctx.fillStyle = hexAlpha(NC.headColor || "#ffffff", 0.35);
   ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.direction = "ltr";
   ctx.fillText(NC.footer || "", W / 2, footY + FOOT_H / 2);
   ctx.restore();
