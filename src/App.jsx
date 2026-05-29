@@ -1979,6 +1979,85 @@ function hexAlpha(hex, a) {
   return `rgba(${r},${g},${b},${a})`;
 }
 
+/* ── Social platform icon badge for canvas footer ─────────────────────── */
+/* Draws a sz×sz rounded-square badge at (x, cy-sz/2) for the given platform */
+function drawPlatformBadge(ctx, platform, x, cy, sz) {
+  const hy = cy - sz / 2;
+  const rc = sz * 0.22;
+  const cx = x + sz / 2;
+  ctx.save();
+
+  /* Rounded square background */
+  ctx.beginPath();
+  ctx.moveTo(x + rc, hy);
+  ctx.arcTo(x + sz, hy,       x + sz, hy + sz, rc);
+  ctx.arcTo(x + sz, hy + sz,  x,      hy + sz, rc);
+  ctx.arcTo(x,      hy + sz,  x,      hy,      rc);
+  ctx.arcTo(x,      hy,       x + sz, hy,      rc);
+  ctx.closePath();
+  const BG = {
+    instagram:"#c13584", twitter:"#000000", tiktok:"#010101",
+    facebook:"#1877f2",  youtube:"#ff0000", website:"#6b7280",
+  };
+  ctx.fillStyle = BG[platform] || "#6b7280";
+  ctx.fill();
+
+  ctx.fillStyle = "#ffffff"; ctx.strokeStyle = "#ffffff";
+  ctx.textAlign = "center";  ctx.textBaseline = "middle";
+
+  if (platform === "instagram") {
+    /* Rounded square outline + inner circle + highlight dot */
+    const pad = sz * 0.19, ir = sz * 0.12;
+    const ix = x + pad, iy = hy + pad, is2 = sz - pad * 2;
+    ctx.lineWidth = sz * 0.09;
+    ctx.beginPath();
+    ctx.moveTo(ix + ir, iy);
+    ctx.arcTo(ix + is2, iy,       ix + is2, iy + is2, ir);
+    ctx.arcTo(ix + is2, iy + is2, ix,       iy + is2, ir);
+    ctx.arcTo(ix,       iy + is2, ix,       iy,       ir);
+    ctx.arcTo(ix,       iy,       ix + is2, iy,       ir);
+    ctx.closePath(); ctx.stroke();
+    ctx.beginPath(); ctx.arc(cx, cy, sz * 0.14, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(cx + sz*0.19, cy - sz*0.19, sz*0.055, 0, Math.PI*2); ctx.fill();
+
+  } else if (platform === "twitter") {
+    /* Bold X */
+    ctx.lineWidth = sz * 0.13; ctx.lineCap = "round";
+    const d = sz * 0.2;
+    ctx.beginPath(); ctx.moveTo(cx-d, cy-d); ctx.lineTo(cx+d, cy+d); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx+d, cy-d); ctx.lineTo(cx-d, cy+d); ctx.stroke();
+
+  } else if (platform === "tiktok") {
+    /* Musical note — readable at small size */
+    ctx.font = `bold ${Math.round(sz * 0.58)}px Arial,sans-serif`;
+    ctx.fillText("♪", cx, cy + sz * 0.04);
+
+  } else if (platform === "facebook") {
+    ctx.font = `bold ${Math.round(sz * 0.65)}px Georgia,serif`;
+    ctx.fillText("f", cx + sz * 0.035, cy + sz * 0.04);
+
+  } else if (platform === "youtube") {
+    /* Right-pointing play triangle */
+    const pw = sz * 0.25, ph = sz * 0.21;
+    ctx.beginPath();
+    ctx.moveTo(cx - pw * 0.45, cy - ph);
+    ctx.lineTo(cx + pw * 0.9,  cy);
+    ctx.lineTo(cx - pw * 0.45, cy + ph);
+    ctx.closePath(); ctx.fill();
+
+  } else {
+    /* Website — simplified globe: circle + horizontal line + vertical oval */
+    ctx.lineWidth = sz * 0.09;
+    ctx.beginPath(); ctx.arc(cx, cy, sz * 0.27, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x + sz*0.1, cy); ctx.lineTo(x + sz*0.9, cy); ctx.stroke();
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, sz * 0.10, sz * 0.27, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
 /* ── Style presets ──────────────────────────────────────────────────── */
 const NC_PRESETS = {
   default:   { label:"الافتراضي",  sw:["#e8c84a","#ffffff","#2a2a38"], gradient:"strong", accentColor:"#e8c84a", headColor:"#ffffff", subColor:"rgba(255,255,255,.55)", bodyColor:"#2a2a38" },
@@ -2008,6 +2087,8 @@ const DEFAULT_NC = {
   brandHeaderTitleColor: "#e8c84a",
   brandFooterSite: "ofa.om",
   brandInstagram: "@omanfa",
+  brandTwitter: "",
+  brandTikTok: "",
   brandFacebook: "",
   brandYoutube: "",
 };
@@ -2389,24 +2470,40 @@ function drawLongTextCard(ctx, NC, bgImg, brandLogo = null) {
   const footMid = footY + FOOT_H / 2;
 
   if (NC.showBranding) {
-    /* Left: website + social handles */
-    const socParts = [
-      NC.brandFooterSite,
-      NC.brandInstagram,
-      NC.brandFacebook,
-      NC.brandYoutube,
+    /* Left: icon badge + handle for each platform that has a value */
+    const footItems = [
+      NC.brandFooterSite && { platform:"website",   text: NC.brandFooterSite },
+      NC.brandInstagram  && { platform:"instagram", text: NC.brandInstagram  },
+      NC.brandTwitter    && { platform:"twitter",   text: NC.brandTwitter    },
+      NC.brandTikTok     && { platform:"tiktok",    text: NC.brandTikTok     },
+      NC.brandFacebook   && { platform:"facebook",  text: NC.brandFacebook   },
+      NC.brandYoutube    && { platform:"youtube",   text: NC.brandYoutube    },
     ].filter(Boolean);
-    if (socParts.length > 0) {
-      ctx.font = `400 ${Rn(17)}px 'Cairo','Tajawal',sans-serif`;
-      ctx.fillStyle = MUTED; ctx.textAlign = "left";
-      ctx.textBaseline = "middle"; ctx.direction = "ltr";
-      ctx.fillText(socParts.join("  ·  "), M, footMid);
+
+    if (footItems.length > 0) {
+      const iconSz = 18, iconGap = 5, itemGap = 12;
+      ctx.save();
+      ctx.font = `400 ${Rn(16)}px 'Cairo','Tajawal',sans-serif`;
+      ctx.fillStyle = MUTED;
+      ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.direction = "ltr";
+      let posX = M;
+      for (const item of footItems) {
+        drawPlatformBadge(ctx, item.platform, posX, footMid, iconSz);
+        posX += iconSz + iconGap;
+        const tw = ctx.measureText(item.text).width;
+        ctx.fillText(item.text, posX, footMid);
+        posX += tw + itemGap;
+      }
+      ctx.restore();
     }
-    /* Right: date (clean bottom-right placement) */
+
+    /* Right: date */
+    ctx.save();
     ctx.font = `400 ${Rn(17)}px 'Cairo','Tajawal',sans-serif`;
     ctx.fillStyle = MUTED; ctx.textAlign = "right";
     ctx.textBaseline = "middle"; ctx.direction = "rtl";
     ctx.fillText(String(NC.date || ""), W - M, footMid);
+    ctx.restore();
   } else {
     ctx.font = `400 ${Rn(19)}px 'Cairo','Tajawal',sans-serif`;
     ctx.fillStyle = MUTED; ctx.textAlign = "center";
@@ -2814,33 +2911,80 @@ function NewsCardStudio({ onBack, theme, T }) {
                             style={{...inp, fontSize:12}}/>
                         </div>
 
-                        {/* Instagram / X */}
+                        {/* Instagram */}
                         <div>
-                          <div style={{fontSize:11, fontWeight:600,
+                          <div style={{fontSize:11, fontWeight:600, marginBottom:4,
                             color: isDark?"rgba(255,255,255,.45)":"rgba(0,0,0,.45)",
-                            marginBottom:4, direction:"rtl"}}>إنستغرام / X</div>
+                            display:"flex", alignItems:"center", gap:5}}>
+                            <span style={{display:"inline-block",
+                              width:10, height:10, borderRadius:2, background:"#c13584",
+                              flexShrink:0}}/>
+                            إنستغرام
+                          </div>
                           <input value={NC.brandInstagram||""} dir="ltr"
                             onChange={e=>UN("brandInstagram",e.target.value)}
                             placeholder="@handle"
                             style={{...inp, fontSize:12}}/>
                         </div>
 
-                        {/* Facebook (optional) */}
+                        {/* X / Twitter */}
                         <div>
-                          <div style={{fontSize:11, fontWeight:600,
+                          <div style={{fontSize:11, fontWeight:600, marginBottom:4,
                             color: isDark?"rgba(255,255,255,.45)":"rgba(0,0,0,.45)",
-                            marginBottom:4, direction:"rtl"}}>فيسبوك (اختياري)</div>
+                            display:"flex", alignItems:"center", gap:5}}>
+                            <span style={{display:"inline-block",
+                              width:10, height:10, borderRadius:2, background:"#000",
+                              flexShrink:0}}/>
+                            X / تويتر
+                          </div>
+                          <input value={NC.brandTwitter||""} dir="ltr"
+                            onChange={e=>UN("brandTwitter",e.target.value)}
+                            placeholder="@handle"
+                            style={{...inp, fontSize:12}}/>
+                        </div>
+
+                        {/* TikTok */}
+                        <div>
+                          <div style={{fontSize:11, fontWeight:600, marginBottom:4,
+                            color: isDark?"rgba(255,255,255,.45)":"rgba(0,0,0,.45)",
+                            display:"flex", alignItems:"center", gap:5}}>
+                            <span style={{display:"inline-block",
+                              width:10, height:10, borderRadius:2, background:"#010101",
+                              flexShrink:0}}/>
+                            تيك توك
+                          </div>
+                          <input value={NC.brandTikTok||""} dir="ltr"
+                            onChange={e=>UN("brandTikTok",e.target.value)}
+                            placeholder="@handle"
+                            style={{...inp, fontSize:12}}/>
+                        </div>
+
+                        {/* Facebook */}
+                        <div>
+                          <div style={{fontSize:11, fontWeight:600, marginBottom:4,
+                            color: isDark?"rgba(255,255,255,.45)":"rgba(0,0,0,.45)",
+                            display:"flex", alignItems:"center", gap:5}}>
+                            <span style={{display:"inline-block",
+                              width:10, height:10, borderRadius:2, background:"#1877f2",
+                              flexShrink:0}}/>
+                            فيسبوك (اختياري)
+                          </div>
                           <input value={NC.brandFacebook||""} dir="ltr"
                             onChange={e=>UN("brandFacebook",e.target.value)}
                             placeholder=""
                             style={{...inp, fontSize:12}}/>
                         </div>
 
-                        {/* YouTube (optional) */}
+                        {/* YouTube */}
                         <div>
-                          <div style={{fontSize:11, fontWeight:600,
+                          <div style={{fontSize:11, fontWeight:600, marginBottom:4,
                             color: isDark?"rgba(255,255,255,.45)":"rgba(0,0,0,.45)",
-                            marginBottom:4, direction:"rtl"}}>يوتيوب (اختياري)</div>
+                            display:"flex", alignItems:"center", gap:5}}>
+                            <span style={{display:"inline-block",
+                              width:10, height:10, borderRadius:2, background:"#ff0000",
+                              flexShrink:0}}/>
+                            يوتيوب (اختياري)
+                          </div>
                           <input value={NC.brandYoutube||""} dir="ltr"
                             onChange={e=>UN("brandYoutube",e.target.value)}
                             placeholder=""
