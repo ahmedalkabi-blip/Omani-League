@@ -2270,6 +2270,54 @@ const NC_PRESETS = {
   editorial: { label:"إخباري",     sw:["#10b981","#ffffff","#022c22"], gradient:"soft",   accentColor:"#10b981", headColor:"#ffffff",  subColor:"rgba(200,255,235,.65)", bodyColor:"#022c22" },
 };
 
+/* ── News content templates ─────────────────────────────────────────── */
+const NEWS_TEMPLATES = [
+  { id:"official", label:"خبر رسمي", sublabel:"Official News",
+    fields:{ category:"رياضة",
+      headline:"عنوان الخبر الرسمي يكتب هنا",
+      subheadline:"تفاصيل الخبر الرسمي تكتب هنا بشكل مختصر وواضح.",
+      body:"تفاصيل الخبر الرسمي تكتب هنا بشكل مختصر وواضح.",
+    },
+  },
+  { id:"statement", label:"تصريح", sublabel:"Statement",
+    fields:{ category:"تصريح",
+      headline:"تصريح رسمي",
+      subheadline:"",
+      body:'قال [الاسم]: "اكتب التصريح هنا..."',
+    },
+  },
+  { id:"honouring", label:"تكريم", sublabel:"Honouring",
+    fields:{ category:"تكريم",
+      headline:"تكريم [الجهة/الشخص]",
+      subheadline:"",
+      body:"تم تكريم [الاسم/الفريق] تقديرًا لجهوده وإنجازاته خلال الفترة الماضية.",
+    },
+  },
+  { id:"announcement", label:"بيان", sublabel:"Announcement",
+    fields:{ category:"بيان",
+      headline:"بيان رسمي",
+      subheadline:"",
+      body:"تعلن [الجهة] عن [التفاصيل]، وذلك في إطار [السياق].",
+    },
+  },
+  { id:"congratulations", label:"تهنئة", sublabel:"Congratulations",
+    fields:{ category:"تهنئة",
+      headline:"تهنئة",
+      subheadline:"",
+      body:"تتقدم [الجهة] بالتهنئة إلى [الاسم/الفريق] بمناسبة [الإنجاز].",
+    },
+  },
+  { id:"breaking", label:"عاجل", sublabel:"Breaking News",
+    fields:{ category:"عاجل",
+      headline:"خبر عاجل",
+      subheadline:"تفاصيل الخبر العاجل تكتب هنا.",
+      body:"تفاصيل الخبر العاجل تكتب هنا.",
+      preset:"breaking", accentColor:"#ef4444", headColor:"#ffffff",
+      subColor:"rgba(255,200,200,.75)", bodyColor:"#200808", gradient:"strong",
+    },
+  },
+];
+
 /* ── Default NC state (used for initial state and full reset) ───────── */
 const DEFAULT_NC = {
   category:"رياضة", date:"٢٤ مايو ٢٠٢٦",
@@ -2301,6 +2349,7 @@ const DEFAULT_NC = {
     {id:"tiktok",on:true},{id:"facebook",on:true},{id:"youtube",on:true},
   ],
   brandIdentityPreset: "",
+  newsTemplate: "",
 };
 
 /* ── Word-highlight renderer for RTL canvas text ───────────────────── */
@@ -2761,6 +2810,16 @@ function NewsCardStudio({ onBack, theme, T }) {
   const [ncBrandLogoSrc,setNcBrandLogoSrc]= useState(null);
   const [exporting,     setExporting]     = useState(false);
   const UN = (k, v) => setNC(p => ({ ...p, [k]: v }));
+
+  /* News template state */
+  const [pendingTemplate, setPendingTemplate] = useState(null);
+
+  const applyTemplate = useCallback((templateId) => {
+    const tmpl = NEWS_TEMPLATES.find(t => t.id === templateId);
+    if (!tmpl) return;
+    setNC(p => ({ ...p, ...tmpl.fields, newsTemplate: templateId }));
+    setPendingTemplate(null);
+  }, []);
 
   /* Full card reset */
   const handleReset = useCallback(() => {
@@ -3331,6 +3390,97 @@ function NewsCardStudio({ onBack, theme, T }) {
                     />
                   )}
                   <div style={{height:4}}/>
+                </div>
+
+                {/* ── 5a. قوالب الخبر ── */}
+                <div>
+                  <SH label="قوالب الخبر" />
+                  <div style={{padding:"0 14px 12px"}}>
+                    <div style={{
+                      display:"grid", gridTemplateColumns:"1fr 1fr",
+                      gap:6, marginBottom: pendingTemplate ? 8 : 0,
+                    }}>
+                      {NEWS_TEMPLATES.map(tmpl => {
+                        const isActive  = NC.newsTemplate === tmpl.id;
+                        const isPending = pendingTemplate === tmpl.id;
+                        return (
+                          <button key={tmpl.id}
+                            onClick={() => {
+                              if (isPending) {
+                                setPendingTemplate(null);
+                                return;
+                              }
+                              /* Check if article text has been customised */
+                              const hasContent =
+                                NC.headline    !== DEFAULT_NC.headline ||
+                                NC.body        !== DEFAULT_NC.body     ||
+                                NC.category    !== DEFAULT_NC.category;
+                              if (hasContent && NC.newsTemplate !== tmpl.id) {
+                                setPendingTemplate(tmpl.id);
+                              } else {
+                                applyTemplate(tmpl.id);
+                              }
+                            }}
+                            style={{
+                              padding:"8px 6px", borderRadius:8,
+                              cursor:"pointer", textAlign:"center",
+                              border:`1px solid ${
+                                isActive  ? T.accent
+                                : isPending
+                                  ? isDark?"rgba(255,255,255,.28)":"rgba(0,0,0,.22)"
+                                  : T.inputBorder
+                              }`,
+                              background: isActive
+                                ? isDark?"rgba(232,200,74,.15)":"rgba(232,200,74,.12)"
+                                : isPending
+                                  ? isDark?"rgba(255,255,255,.07)":"rgba(0,0,0,.05)"
+                                  : T.btnBg,
+                              color: isActive ? T.accent : T.btnText,
+                            }}>
+                            <div style={{fontSize:12, fontWeight:700, direction:"rtl"}}>
+                              {tmpl.label}
+                            </div>
+                            <div style={{fontSize:9, opacity:0.55, marginTop:2}}>
+                              {tmpl.sublabel}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Inline confirmation */}
+                    {pendingTemplate && (
+                      <div style={{
+                        padding:"10px 12px", borderRadius:8,
+                        background: isDark?"rgba(255,255,255,.05)":"rgba(0,0,0,.04)",
+                        border:`1px solid ${isDark?"rgba(255,255,255,.10)":"rgba(0,0,0,.09)"}`,
+                      }}>
+                        <div style={{
+                          fontSize:11, direction:"rtl", marginBottom:8,
+                          color: isDark?"rgba(255,255,255,.75)":"rgba(0,0,0,.65)",
+                        }}>
+                          سيتم استبدال النص الحالي. هل تريد المتابعة؟
+                        </div>
+                        <div style={{display:"flex", gap:6}}>
+                          <button
+                            onClick={() => applyTemplate(pendingTemplate)}
+                            style={{
+                              flex:1, padding:"6px", borderRadius:6,
+                              cursor:"pointer", fontSize:11, fontWeight:700,
+                              background:T.accent, border:"none", color:T.accentFg,
+                            }}>تطبيق</button>
+                          <button
+                            onClick={() => setPendingTemplate(null)}
+                            style={{
+                              flex:1, padding:"6px", borderRadius:6,
+                              cursor:"pointer", fontSize:11,
+                              background:T.btnBg,
+                              border:`1px solid ${T.btnBorder}`, color:T.btnText,
+                            }}>إلغاء</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* ── 5. بيانات الخبر ── */}
