@@ -2161,7 +2161,7 @@ function wrapText(ctx, text, maxW, maxLines) {
   return lines;
 }
 
-function drawNewsCard(ctx, NC, bgImg) {
+function drawNewsCard(ctx, NC, bgImg, brandLogo = null) {
   const W = 1080, H = 1350, Rn = Math.round;
   const M = 64;
   const FOOT_H = 100;
@@ -2314,16 +2314,98 @@ function drawNewsCard(ctx, NC, bgImg) {
 
   /* ── 8. FOOTER ZONE (shown only when identity is ON) ───────────────── */
   if (NC.showBranding) {
-    const footY = H - FOOT_H;
+    const footY  = H - FOOT_H;
+    const footMid = footY + FOOT_H / 2;
     ctx.save();
-    /* Gold separator line */
+
+    /* Separator line */
     ctx.strokeStyle = hexAlpha(ac, .35); ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(M, footY); ctx.lineTo(W - M, footY); ctx.stroke();
-    /* Website / footer text — tinted with headColor for preset consistency */
-    ctx.font = `400 ${Rn(19)}px 'Cairo','Tajawal',sans-serif`;
-    ctx.fillStyle = hexAlpha(NC.headColor || "#ffffff", 0.35);
-    ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.direction = "ltr";
-    ctx.fillText(NC.footer || "", W / 2, footY + FOOT_H / 2);
+
+    /* Logo — bottom-left */
+    let contentLeft = M;
+    if (brandLogo) {
+      const lH = Math.min(38, brandLogo.naturalHeight);
+      const lW = Rn(lH * (brandLogo.naturalWidth / brandLogo.naturalHeight));
+      ctx.drawImage(brandLogo, M, Rn(footMid - lH / 2), lW, lH);
+      contentLeft = M + lW + 14;
+    }
+
+    /* Social content */
+    ctx.fillStyle = hexAlpha(NC.headColor || "#ffffff", 0.55);
+    ctx.textBaseline = "middle"; ctx.direction = "ltr";
+
+    if (NC.brandFooterMode === "detailed") {
+      /* Detailed: icon + own handle per platform */
+      const detailItems = [
+        NC.brandFooterSite && { platform:"website",   text: NC.brandFooterSite },
+        NC.brandInstagram  && { platform:"instagram", text: NC.brandInstagram  },
+        NC.brandTwitter    && { platform:"twitter",   text: NC.brandTwitter    },
+        NC.brandTikTok     && { platform:"tiktok",    text: NC.brandTikTok     },
+        NC.brandFacebook   && { platform:"facebook",  text: NC.brandFacebook   },
+        NC.brandYoutube    && { platform:"youtube",   text: NC.brandYoutube    },
+      ].filter(Boolean);
+      if (detailItems.length > 0) {
+        const iconSz = 18, iconGap = 5, itemGap = 12;
+        ctx.font = `400 ${Rn(17)}px 'Cairo','Tajawal',sans-serif`;
+        ctx.textAlign = "left";
+        let posX = contentLeft;
+        for (const item of detailItems) {
+          drawPlatformBadge(ctx, item.platform, posX, footMid, iconSz);
+          posX += iconSz + iconGap;
+          ctx.fillText(item.text, posX, footMid);
+          posX += ctx.measureText(item.text).width + itemGap;
+        }
+      }
+    } else {
+      /* Compact: website → [social icons] → shortHandle → [video icons] → longName */
+      const iconSz = 18, iconGap = 4, secGap = 18;
+      ctx.font = `400 ${Rn(17)}px 'Cairo','Tajawal',sans-serif`;
+      ctx.textAlign = "left";
+      let posX = contentLeft;
+
+      if (NC.brandFooterSite) {
+        ctx.fillText(NC.brandFooterSite, posX, footMid);
+        posX += ctx.measureText(NC.brandFooterSite).width + secGap;
+      }
+
+      const socialPlats = [
+        NC.brandInstagram && "instagram",
+        NC.brandTwitter   && "twitter",
+        NC.brandTikTok    && "tiktok",
+      ].filter(Boolean);
+      for (const plat of socialPlats) {
+        drawPlatformBadge(ctx, plat, posX, footMid, iconSz);
+        posX += iconSz + iconGap;
+      }
+      if (socialPlats.length > 0) { posX -= iconGap; posX += secGap; }
+
+      if (NC.brandShortHandle) {
+        ctx.fillText(NC.brandShortHandle, posX, footMid);
+        posX += ctx.measureText(NC.brandShortHandle).width + secGap;
+      }
+
+      const videoPlats = [
+        NC.brandFacebook && "facebook",
+        NC.brandYoutube  && "youtube",
+      ].filter(Boolean);
+      for (const plat of videoPlats) {
+        drawPlatformBadge(ctx, plat, posX, footMid, iconSz);
+        posX += iconSz + iconGap;
+      }
+      if (videoPlats.length > 0) { posX -= iconGap; posX += secGap; }
+
+      if (NC.brandLongName) {
+        ctx.fillText(NC.brandLongName, posX, footMid);
+      }
+    }
+
+    /* Header title — bottom-right */
+    ctx.font = `700 ${Rn(22)}px 'Cairo','Tajawal',sans-serif`;
+    ctx.fillStyle = NC.brandHeaderTitleColor || ac;
+    ctx.textAlign = "right"; ctx.direction = "rtl";
+    ctx.fillText(NC.brandHeaderTitle || "", W - M, footMid);
+
     ctx.restore();
   }
 }
@@ -2691,7 +2773,7 @@ function NewsCardStudio({ onBack, theme, T }) {
     canvas.width = 1080; canvas.height = H_CANVAS;
     const ctx = canvas.getContext("2d");
     if (NC.template === "longtext") drawLongTextCard(ctx, NC, ncBgImg, ncBrandLogo);
-    else drawNewsCard(ctx, NC, ncBgImg);
+    else drawNewsCard(ctx, NC, ncBgImg, ncBrandLogo);
   }, [NC, ncBgImg, ncBrandLogo, H_CANVAS]);
 
   /* Background image loader — keeps data-URL for draft persistence */
@@ -2900,208 +2982,188 @@ function NewsCardStudio({ onBack, theme, T }) {
                   </div>
                 )}
 
-                {/* ── 2b. هوية البطاقة (image only: footer toggle) ── */}
-                {NC.template === "image" && (
-                  <div>
-                    <SH label="هوية البطاقة" />
-                    <BtnGroup
-                      options={[["true","إظهار الهوية"],["false","إخفاء"]]}
-                      active={String(NC.showBranding)}
-                      onSelect={v => UN("showBranding", v === "true")}
-                    />
-                    {NC.showBranding && (
-                      <div style={{
-                        marginTop:8, fontSize:10, direction:"rtl",
-                        color: isDark?"rgba(255,255,255,.30)":"rgba(0,0,0,.30)",
-                      }}>
-                        يمكن تعديل نص التذييل في قسم "بيانات الخبر"
-                      </div>
-                    )}
-                  </div>
-                )}
+                {/* ── 2b. هوية البطاقة (shared across all templates) ── */}
+                <div>
+                  <SH label="هوية البطاقة" />
+                  <BtnGroup
+                    options={[["true","إظهار الهوية"],["false","إخفاء"]]}
+                    active={String(NC.showBranding)}
+                    onSelect={v => UN("showBranding", v === "true")}
+                  />
 
-                {/* ── 2c. هوية البطاقة (longtext only) ── */}
-                {NC.template === "longtext" && (
-                  <div>
-                    <SH label="هوية البطاقة" />
-                    <BtnGroup
-                      options={[["true","إظهار الهوية"],["false","إخفاء"]]}
-                      active={String(NC.showBranding)}
-                      onSelect={v => UN("showBranding", v === "true")}
-                    />
+                  {NC.showBranding && (
+                    <div style={{marginTop:10, display:"flex", flexDirection:"column", gap:8}}>
 
-                    {NC.showBranding && (
-                      <div style={{marginTop:10, display:"flex", flexDirection:"column", gap:8}}>
-
-                        {/* Logo upload */}
-                        <div>
-                          <div style={{fontSize:11, fontWeight:600,
-                            color: isDark?"rgba(255,255,255,.45)":"rgba(0,0,0,.45)",
-                            marginBottom:4, direction:"rtl"}}>شعار الجهة</div>
-                          <label style={{
-                            display:"block", padding:"8px 10px", borderRadius:7, cursor:"pointer",
-                            textAlign:"center", border:`1px dashed ${T.inputBorder}`,
-                            background:T.inputBg, fontSize:11,
-                            color: ncBrandLogo ? "#10b981" : T.textMuted,
-                          }}>
-                            {ncBrandLogo ? "✓ تم رفع الشعار" : "رفع شعار..."}
-                            <input type="file" accept="image/*"
-                              onChange={loadBrandLogo} style={{display:"none"}}/>
-                          </label>
-                          {ncBrandLogo && (
-                            <button
-                              onClick={()=>{setNcBrandLogo(null);setNcBrandLogoSrc(null);}}
-                              style={{
-                                width:"100%", padding:"5px", borderRadius:6, marginTop:4,
-                                border:`1px solid ${T.btnBorder}`, background:T.btnBg,
-                                cursor:"pointer", fontSize:11, color:T.btnText,
-                              }}>حذف الشعار</button>
-                          )}
-                        </div>
-
-                        {/* Header title */}
-                        <div>
-                          <div style={{fontSize:11, fontWeight:600,
-                            color: isDark?"rgba(255,255,255,.45)":"rgba(0,0,0,.45)",
-                            marginBottom:4, direction:"rtl"}}>عنوان الهيدر</div>
-                          <input value={NC.brandHeaderTitle||""} dir="rtl"
-                            onChange={e=>UN("brandHeaderTitle",e.target.value)}
-                            placeholder="أخبار كرة القدم"
-                            style={{...inp, fontSize:12}}/>
-                        </div>
-
-                        {/* Header title color */}
-                        <div style={{display:"flex", alignItems:"center",
-                          justifyContent:"space-between", gap:8}}>
-                          <div style={{fontSize:11, fontWeight:600,
-                            color: isDark?"rgba(255,255,255,.45)":"rgba(0,0,0,.45)",
-                            direction:"rtl"}}>لون عنوان الهيدر</div>
-                          <input type="color"
-                            value={NC.brandHeaderTitleColor||"#e8c84a"}
-                            onChange={e=>UN("brandHeaderTitleColor",e.target.value)}
+                      {/* Logo upload */}
+                      <div>
+                        <div style={{fontSize:11, fontWeight:600,
+                          color: isDark?"rgba(255,255,255,.45)":"rgba(0,0,0,.45)",
+                          marginBottom:4, direction:"rtl"}}>شعار الجهة</div>
+                        <label style={{
+                          display:"block", padding:"8px 10px", borderRadius:7, cursor:"pointer",
+                          textAlign:"center", border:`1px dashed ${T.inputBorder}`,
+                          background:T.inputBg, fontSize:11,
+                          color: ncBrandLogo ? "#10b981" : T.textMuted,
+                        }}>
+                          {ncBrandLogo ? "✓ تم رفع الشعار" : "رفع شعار..."}
+                          <input type="file" accept="image/*"
+                            onChange={loadBrandLogo} style={{display:"none"}}/>
+                        </label>
+                        {ncBrandLogo && (
+                          <button
+                            onClick={()=>{setNcBrandLogo(null);setNcBrandLogoSrc(null);}}
                             style={{
-                              width:32, height:24, border:"none", borderRadius:5,
-                              cursor:"pointer", background:"transparent", padding:2,
-                            }}/>
-                        </div>
+                              width:"100%", padding:"5px", borderRadius:6, marginTop:4,
+                              border:`1px solid ${T.btnBorder}`, background:T.btnBg,
+                              cursor:"pointer", fontSize:11, color:T.btnText,
+                            }}>حذف الشعار</button>
+                        )}
+                      </div>
 
-                        {/* ── Footer display mode toggle ── */}
-                        <div>
-                          <div style={{fontSize:11, fontWeight:600, marginBottom:6,
-                            color: isDark?"rgba(255,255,255,.45)":"rgba(0,0,0,.45)",
-                            direction:"rtl"}}>طريقة عرض حسابات التواصل</div>
-                          <BtnGroup
-                            options={[["compact","مختصر"],["detailed","تفصيلي"]]}
-                            active={NC.brandFooterMode||"compact"}
-                            onSelect={v => UN("brandFooterMode", v)}
-                          />
+                      {/* Header title */}
+                      <div>
+                        <div style={{fontSize:11, fontWeight:600,
+                          color: isDark?"rgba(255,255,255,.45)":"rgba(0,0,0,.45)",
+                          marginBottom:4, direction:"rtl"}}>
+                          {NC.template === "image" ? "نص التذييل اليميني" : "عنوان الهيدر"}
                         </div>
+                        <input value={NC.brandHeaderTitle||""} dir="rtl"
+                          onChange={e=>UN("brandHeaderTitle",e.target.value)}
+                          placeholder="أخبار كرة القدم"
+                          style={{...inp, fontSize:12}}/>
+                      </div>
 
-                        {/* Website — common to both modes */}
+                      {/* Header title color */}
+                      <div style={{display:"flex", alignItems:"center",
+                        justifyContent:"space-between", gap:8}}>
+                        <div style={{fontSize:11, fontWeight:600,
+                          color: isDark?"rgba(255,255,255,.45)":"rgba(0,0,0,.45)",
+                          direction:"rtl"}}>لون النص</div>
+                        <input type="color"
+                          value={NC.brandHeaderTitleColor||"#e8c84a"}
+                          onChange={e=>UN("brandHeaderTitleColor",e.target.value)}
+                          style={{
+                            width:32, height:24, border:"none", borderRadius:5,
+                            cursor:"pointer", background:"transparent", padding:2,
+                          }}/>
+                      </div>
+
+                      {/* Footer display mode toggle */}
+                      <div>
+                        <div style={{fontSize:11, fontWeight:600, marginBottom:6,
+                          color: isDark?"rgba(255,255,255,.45)":"rgba(0,0,0,.45)",
+                          direction:"rtl"}}>طريقة عرض حسابات التواصل</div>
+                        <BtnGroup
+                          options={[["compact","مختصر"],["detailed","تفصيلي"]]}
+                          active={NC.brandFooterMode||"compact"}
+                          onSelect={v => UN("brandFooterMode", v)}
+                        />
+                      </div>
+
+                      {/* Website — common to both modes */}
+                      <div>
+                        <div style={{fontSize:11, fontWeight:600, marginBottom:4,
+                          color: isDark?"rgba(255,255,255,.45)":"rgba(0,0,0,.45)",
+                          direction:"rtl"}}>الموقع / النطاق</div>
+                        <input value={NC.brandFooterSite||""} dir="ltr"
+                          onChange={e=>UN("brandFooterSite",e.target.value)}
+                          placeholder="ofa.om"
+                          style={{...inp, fontSize:12}}/>
+                      </div>
+
+                      {/* Compact-specific fields */}
+                      {(NC.brandFooterMode||"compact") === "compact" && (<>
                         <div>
                           <div style={{fontSize:11, fontWeight:600, marginBottom:4,
                             color: isDark?"rgba(255,255,255,.45)":"rgba(0,0,0,.45)",
-                            direction:"rtl"}}>الموقع / النطاق</div>
-                          <input value={NC.brandFooterSite||""} dir="ltr"
-                            onChange={e=>UN("brandFooterSite",e.target.value)}
-                            placeholder="ofa.om"
+                            direction:"rtl"}}>الحساب المختصر (IG / X / TikTok)</div>
+                          <input value={NC.brandShortHandle||""} dir="ltr"
+                            onChange={e=>UN("brandShortHandle",e.target.value)}
+                            placeholder="omanfa"
                             style={{...inp, fontSize:12}}/>
                         </div>
 
-                        {/* ── Compact-specific fields ── */}
-                        {(NC.brandFooterMode||"compact") === "compact" && (<>
-                          <div>
-                            <div style={{fontSize:11, fontWeight:600, marginBottom:4,
-                              color: isDark?"rgba(255,255,255,.45)":"rgba(0,0,0,.45)",
-                              direction:"rtl"}}>الحساب المختصر (IG / X / TikTok)</div>
-                            <input value={NC.brandShortHandle||""} dir="ltr"
-                              onChange={e=>UN("brandShortHandle",e.target.value)}
-                              placeholder="omanfa"
-                              style={{...inp, fontSize:12}}/>
-                          </div>
+                        <div>
+                          <div style={{fontSize:11, fontWeight:600, marginBottom:4,
+                            color: isDark?"rgba(255,255,255,.45)":"rgba(0,0,0,.45)",
+                            direction:"rtl"}}>الاسم الطويل / الصفحة (FB / YT)</div>
+                          <input value={NC.brandLongName||""} dir="ltr"
+                            onChange={e=>UN("brandLongName",e.target.value)}
+                            placeholder="oman football association"
+                            style={{...inp, fontSize:12}}/>
+                        </div>
 
-                          <div>
-                            <div style={{fontSize:11, fontWeight:600, marginBottom:4,
-                              color: isDark?"rgba(255,255,255,.45)":"rgba(0,0,0,.45)",
-                              direction:"rtl"}}>الاسم الطويل / الصفحة (FB / YT)</div>
-                            <input value={NC.brandLongName||""} dir="ltr"
-                              onChange={e=>UN("brandLongName",e.target.value)}
-                              placeholder="oman football association"
-                              style={{...inp, fontSize:12}}/>
+                        {/* Platform icon toggles */}
+                        <div style={{
+                          borderTop:`1px solid ${isDark?"rgba(255,255,255,.07)":"rgba(0,0,0,.07)"}`,
+                          paddingTop:8,
+                        }}>
+                          <div style={{fontSize:10, marginBottom:6, direction:"rtl",
+                            color: isDark?"rgba(255,255,255,.30)":"rgba(0,0,0,.30)"}}>
+                            أدخل قيمة لتفعيل أيقونة المنصة
                           </div>
-
-                          {/* Platform icon toggles — enter any value to show icon */}
-                          <div style={{
-                            borderTop:`1px solid ${isDark?"rgba(255,255,255,.07)":"rgba(0,0,0,.07)"}`,
-                            paddingTop:8,
-                          }}>
-                            <div style={{fontSize:10, marginBottom:6, direction:"rtl",
-                              color: isDark?"rgba(255,255,255,.30)":"rgba(0,0,0,.30)"}}>
-                              أدخل قيمة لتفعيل أيقونة المنصة
-                            </div>
-                            {[
-                              ["brandInstagram","إنستغرام","#c13584","@handle"],
-                              ["brandTwitter",  "X / تويتر","#000",  "@handle"],
-                              ["brandTikTok",   "تيك توك",  "#010101","@handle"],
-                              ["brandFacebook", "فيسبوك",   "#1877f2","اسم الصفحة"],
-                              ["brandYoutube",  "يوتيوب",   "#ff0000","اسم القناة"],
-                            ].map(([key,label,color,ph]) => (
-                              <div key={key} style={{
-                                display:"flex", alignItems:"center", gap:6, marginBottom:5}}>
-                                <span style={{
-                                  display:"inline-block", width:9, height:9,
-                                  borderRadius:2, background:color, flexShrink:0,
-                                }}/>
-                                <span style={{
-                                  fontSize:10, color: isDark?"rgba(255,255,255,.45)":"rgba(0,0,0,.45)",
-                                  flex:"0 0 68px",
-                                }}>{label}</span>
-                                <input value={NC[key]||""} dir="ltr"
-                                  onChange={e=>UN(key,e.target.value)}
-                                  placeholder={ph}
-                                  style={{
-                                    flex:1, fontSize:11, padding:"3px 7px",
-                                    borderRadius:5,
-                                    border:`1px solid ${isDark?"rgba(255,255,255,.12)":"rgba(0,0,0,.12)"}`,
-                                    background: isDark?"rgba(255,255,255,.05)":"rgba(0,0,0,.03)",
-                                    color: isDark?"#e8e8f0":"#1a1a2e",
-                                    outline:"none",
-                                  }}/>
-                              </div>
-                            ))}
-                          </div>
-                        </>)}
-
-                        {/* ── Detailed-specific fields ── */}
-                        {(NC.brandFooterMode||"compact") === "detailed" && (<>
                           {[
                             ["brandInstagram","إنستغرام","#c13584","@handle"],
                             ["brandTwitter",  "X / تويتر","#000",  "@handle"],
                             ["brandTikTok",   "تيك توك",  "#010101","@handle"],
-                            ["brandFacebook", "فيسبوك",   "#1877f2",""],
-                            ["brandYoutube",  "يوتيوب",   "#ff0000",""],
+                            ["brandFacebook", "فيسبوك",   "#1877f2","اسم الصفحة"],
+                            ["brandYoutube",  "يوتيوب",   "#ff0000","اسم القناة"],
                           ].map(([key,label,color,ph]) => (
-                            <div key={key}>
-                              <div style={{fontSize:11, fontWeight:600, marginBottom:4,
-                                color: isDark?"rgba(255,255,255,.45)":"rgba(0,0,0,.45)",
-                                display:"flex", alignItems:"center", gap:5}}>
-                                <span style={{display:"inline-block",
-                                  width:10, height:10, borderRadius:2, background:color,
-                                  flexShrink:0}}/>
-                                {label}
-                              </div>
+                            <div key={key} style={{
+                              display:"flex", alignItems:"center", gap:6, marginBottom:5}}>
+                              <span style={{
+                                display:"inline-block", width:9, height:9,
+                                borderRadius:2, background:color, flexShrink:0,
+                              }}/>
+                              <span style={{
+                                fontSize:10, color: isDark?"rgba(255,255,255,.45)":"rgba(0,0,0,.45)",
+                                flex:"0 0 68px",
+                              }}>{label}</span>
                               <input value={NC[key]||""} dir="ltr"
                                 onChange={e=>UN(key,e.target.value)}
                                 placeholder={ph}
-                                style={{...inp, fontSize:12}}/>
+                                style={{
+                                  flex:1, fontSize:11, padding:"3px 7px",
+                                  borderRadius:5,
+                                  border:`1px solid ${isDark?"rgba(255,255,255,.12)":"rgba(0,0,0,.12)"}`,
+                                  background: isDark?"rgba(255,255,255,.05)":"rgba(0,0,0,.03)",
+                                  color: isDark?"#e8e8f0":"#1a1a2e",
+                                  outline:"none",
+                                }}/>
                             </div>
                           ))}
-                        </>)}
+                        </div>
+                      </>)}
 
-                      </div>
-                    )}
-                  </div>
-                )}
+                      {/* Detailed-specific fields */}
+                      {(NC.brandFooterMode||"compact") === "detailed" && (<>
+                        {[
+                          ["brandInstagram","إنستغرام","#c13584","@handle"],
+                          ["brandTwitter",  "X / تويتر","#000",  "@handle"],
+                          ["brandTikTok",   "تيك توك",  "#010101","@handle"],
+                          ["brandFacebook", "فيسبوك",   "#1877f2",""],
+                          ["brandYoutube",  "يوتيوب",   "#ff0000",""],
+                        ].map(([key,label,color,ph]) => (
+                          <div key={key}>
+                            <div style={{fontSize:11, fontWeight:600, marginBottom:4,
+                              color: isDark?"rgba(255,255,255,.45)":"rgba(0,0,0,.45)",
+                              display:"flex", alignItems:"center", gap:5}}>
+                              <span style={{display:"inline-block",
+                                width:10, height:10, borderRadius:2, background:color,
+                                flexShrink:0}}/>
+                              {label}
+                            </div>
+                            <input value={NC[key]||""} dir="ltr"
+                              onChange={e=>UN(key,e.target.value)}
+                              placeholder={ph}
+                              style={{...inp, fontSize:12}}/>
+                          </div>
+                        ))}
+                      </>)}
+
+                    </div>
+                  )}
+                </div>
 
                 {/* ── 3. نوع التدرج (image only) ── */}
                 {NC.template === "image" && (
