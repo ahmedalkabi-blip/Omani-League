@@ -2068,6 +2068,89 @@ function drawPlatformBadge(ctx, platform, x, cy, sz) {
   ctx.restore();
 }
 
+/* ── Platform ordering / visibility metadata ────────────────────────── */
+const DEFAULT_PLATFORMS = [
+  { id:"website",   on:true  },
+  { id:"instagram", on:true  },
+  { id:"twitter",   on:true  },
+  { id:"tiktok",    on:true  },
+  { id:"facebook",  on:true  },
+  { id:"youtube",   on:true  },
+];
+
+const PLAT_FIELD = {
+  website:"brandFooterSite", instagram:"brandInstagram",
+  twitter:"brandTwitter",   tiktok:"brandTikTok",
+  facebook:"brandFacebook", youtube:"brandYoutube",
+};
+
+const PLAT_META = {
+  website:  { label:"الموقع",     color:"#6b7280", ph:"ofa.om"          },
+  instagram:{ label:"إنستغرام",   color:"#c13584", ph:"@handle"         },
+  twitter:  { label:"X / تويتر", color:"#000000", ph:"@handle"         },
+  tiktok:   { label:"تيك توك",    color:"#010101", ph:"@handle"         },
+  facebook: { label:"فيسبوك",     color:"#1877f2", ph:"اسم الصفحة"     },
+  youtube:  { label:"يوتيوب",     color:"#ff0000", ph:"اسم القناة"     },
+};
+
+/* Identity presets — only touch branding fields, never article content */
+const IDENTITY_PRESETS = [
+  { id:"ofa", label:"OFA Style",
+    fields:{ showBranding:true, brandHeaderTitle:"أخبار الاتحاد",
+      brandHeaderTitleColor:"#e8c84a", brandFooterMode:"compact",
+      brandFooterSite:"ofa.om", brandShortHandle:"omanfa",
+      brandLongName:"oman football association",
+      brandInstagram:"@omanfa", brandTwitter:"@omanfa", brandTikTok:"@omanfa",
+      brandFacebook:"Oman FA", brandYoutube:"Oman FA", brandIdentityPreset:"ofa",
+      brandPlatforms:[
+        {id:"website",on:true},{id:"instagram",on:true},{id:"twitter",on:true},
+        {id:"tiktok",on:true},{id:"facebook",on:true},{id:"youtube",on:true},
+      ],
+    },
+  },
+  { id:"league", label:"League Style",
+    fields:{ showBranding:true, brandHeaderTitle:"أخبار الدوري",
+      brandHeaderTitleColor:"#e8c84a", brandFooterMode:"compact",
+      brandFooterSite:"osl.om", brandShortHandle:"OmanLeague",
+      brandLongName:"Oman League",
+      brandInstagram:"@OmanLeague", brandTwitter:"@OmanLeague", brandTikTok:"@OmanLeague",
+      brandFacebook:"", brandYoutube:"", brandIdentityPreset:"league",
+      brandPlatforms:[
+        {id:"website",on:true},{id:"instagram",on:true},{id:"twitter",on:true},
+        {id:"tiktok",on:true},{id:"facebook",on:false},{id:"youtube",on:false},
+      ],
+    },
+  },
+  { id:"minimal", label:"Minimal",
+    fields:{ showBranding:true, brandHeaderTitle:"",
+      brandHeaderTitleColor:"#e8c84a", brandFooterMode:"compact",
+      brandFooterSite:"", brandShortHandle:"", brandLongName:"",
+      brandInstagram:"", brandTwitter:"", brandTikTok:"",
+      brandFacebook:"", brandYoutube:"", brandIdentityPreset:"minimal",
+      brandPlatforms:[
+        {id:"website",on:true},{id:"instagram",on:true},{id:"twitter",on:true},
+        {id:"tiktok",on:false},{id:"facebook",on:false},{id:"youtube",on:false},
+      ],
+    },
+  },
+  { id:"clean", label:"بدون هوية",
+    fields:{ showBranding:false, brandIdentityPreset:"clean",
+      brandPlatforms:[
+        {id:"website",on:false},{id:"instagram",on:false},{id:"twitter",on:false},
+        {id:"tiktok",on:false},{id:"facebook",on:false},{id:"youtube",on:false},
+      ],
+    },
+  },
+];
+
+/* Resolve ordered, enabled platforms that have a text value — used by canvas renderers */
+function resolveFooterItems(NC) {
+  const platforms = NC.brandPlatforms || DEFAULT_PLATFORMS;
+  return platforms
+    .filter(p => p.on && NC[PLAT_FIELD[p.id]])
+    .map(p => ({ id: p.id, text: NC[PLAT_FIELD[p.id]] }));
+}
+
 /* ── Style presets ──────────────────────────────────────────────────── */
 const NC_PRESETS = {
   default:   { label:"الافتراضي",  sw:["#e8c84a","#ffffff","#2a2a38"], gradient:"strong", accentColor:"#e8c84a", headColor:"#ffffff", subColor:"rgba(255,255,255,.55)", bodyColor:"#2a2a38" },
@@ -2104,6 +2187,11 @@ const DEFAULT_NC = {
   brandTikTok: "",
   brandFacebook: "",
   brandYoutube: "",
+  brandPlatforms: [
+    {id:"website",on:true},{id:"instagram",on:true},{id:"twitter",on:true},
+    {id:"tiktok",on:true},{id:"facebook",on:true},{id:"youtube",on:true},
+  ],
+  brandIdentityPreset: "",
 };
 
 /* ── Word-highlight renderer for RTL canvas text ───────────────────── */
@@ -2314,11 +2402,11 @@ function drawNewsCard(ctx, NC, bgImg, brandLogo = null) {
 
   /* ── 8. FOOTER ZONE (shown only when identity is ON) ───────────────── */
   if (NC.showBranding) {
-    const footY  = H - FOOT_H;
+    const footY   = H - FOOT_H;
     const footMid = footY + FOOT_H / 2;
     ctx.save();
 
-    /* Separator line */
+    /* Separator */
     ctx.strokeStyle = hexAlpha(ac, .35); ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(M, footY); ctx.lineTo(W - M, footY); ctx.stroke();
 
@@ -2331,71 +2419,49 @@ function drawNewsCard(ctx, NC, bgImg, brandLogo = null) {
       contentLeft = M + lW + 14;
     }
 
-    /* Social content */
     ctx.fillStyle = hexAlpha(NC.headColor || "#ffffff", 0.55);
     ctx.textBaseline = "middle"; ctx.direction = "ltr";
 
+    const allItems   = resolveFooterItems(NC);
+    const SOCIAL_IDS = ["instagram","twitter","tiktok"];
+    const VIDEO_IDS  = ["facebook","youtube"];
+
     if (NC.brandFooterMode === "detailed") {
-      /* Detailed: icon + own handle per platform */
-      const detailItems = [
-        NC.brandFooterSite && { platform:"website",   text: NC.brandFooterSite },
-        NC.brandInstagram  && { platform:"instagram", text: NC.brandInstagram  },
-        NC.brandTwitter    && { platform:"twitter",   text: NC.brandTwitter    },
-        NC.brandTikTok     && { platform:"tiktok",    text: NC.brandTikTok     },
-        NC.brandFacebook   && { platform:"facebook",  text: NC.brandFacebook   },
-        NC.brandYoutube    && { platform:"youtube",   text: NC.brandYoutube    },
-      ].filter(Boolean);
-      if (detailItems.length > 0) {
-        const iconSz = 18, iconGap = 5, itemGap = 12;
-        ctx.font = `400 ${Rn(17)}px 'Cairo','Tajawal',sans-serif`;
-        ctx.textAlign = "left";
-        let posX = contentLeft;
-        for (const item of detailItems) {
-          drawPlatformBadge(ctx, item.platform, posX, footMid, iconSz);
-          posX += iconSz + iconGap;
-          ctx.fillText(item.text, posX, footMid);
-          posX += ctx.measureText(item.text).width + itemGap;
-        }
+      const iconSz = 18, iconGap = 5, itemGap = 12;
+      ctx.font = `400 ${Rn(17)}px 'Cairo','Tajawal',sans-serif`;
+      ctx.textAlign = "left";
+      let posX = contentLeft;
+      for (const item of allItems) {
+        drawPlatformBadge(ctx, item.id, posX, footMid, iconSz);
+        posX += iconSz + iconGap;
+        ctx.fillText(item.text, posX, footMid);
+        posX += ctx.measureText(item.text).width + itemGap;
       }
     } else {
-      /* Compact: website → [social icons] → shortHandle → [video icons] → longName */
       const iconSz = 18, iconGap = 4, secGap = 18;
       ctx.font = `400 ${Rn(17)}px 'Cairo','Tajawal',sans-serif`;
       ctx.textAlign = "left";
       let posX = contentLeft;
 
-      if (NC.brandFooterSite) {
-        ctx.fillText(NC.brandFooterSite, posX, footMid);
-        posX += ctx.measureText(NC.brandFooterSite).width + secGap;
-      }
+      const webItem   = allItems.find(i => i.id === "website");
+      const iconItems = allItems.filter(i => i.id !== "website");
+      const hasSocial = iconItems.some(i => SOCIAL_IDS.includes(i.id));
+      const hasVideo  = iconItems.some(i => VIDEO_IDS.includes(i.id));
 
-      const socialPlats = [
-        NC.brandInstagram && "instagram",
-        NC.brandTwitter   && "twitter",
-        NC.brandTikTok    && "tiktok",
-      ].filter(Boolean);
-      for (const plat of socialPlats) {
-        drawPlatformBadge(ctx, plat, posX, footMid, iconSz);
+      if (webItem) {
+        ctx.fillText(webItem.text, posX, footMid);
+        posX += ctx.measureText(webItem.text).width + secGap;
+      }
+      for (const item of iconItems) {
+        drawPlatformBadge(ctx, item.id, posX, footMid, iconSz);
         posX += iconSz + iconGap;
       }
-      if (socialPlats.length > 0) { posX -= iconGap; posX += secGap; }
-
-      if (NC.brandShortHandle) {
+      if (iconItems.length > 0) { posX -= iconGap; posX += secGap; }
+      if (hasSocial && NC.brandShortHandle) {
         ctx.fillText(NC.brandShortHandle, posX, footMid);
         posX += ctx.measureText(NC.brandShortHandle).width + secGap;
       }
-
-      const videoPlats = [
-        NC.brandFacebook && "facebook",
-        NC.brandYoutube  && "youtube",
-      ].filter(Boolean);
-      for (const plat of videoPlats) {
-        drawPlatformBadge(ctx, plat, posX, footMid, iconSz);
-        posX += iconSz + iconGap;
-      }
-      if (videoPlats.length > 0) { posX -= iconGap; posX += secGap; }
-
-      if (NC.brandLongName) {
+      if (hasVideo && NC.brandLongName) {
         ctx.fillText(NC.brandLongName, posX, footMid);
       }
     }
@@ -2575,78 +2641,51 @@ function drawLongTextCard(ctx, NC, bgImg, brandLogo = null) {
     ctx.save();
     ctx.fillStyle = MUTED; ctx.textBaseline = "middle"; ctx.direction = "ltr";
 
-    if (NC.brandFooterMode === "detailed") {
-      /* ── Detailed: icon + own handle per platform ── */
-      const detailItems = [
-        NC.brandFooterSite && { platform:"website",   text: NC.brandFooterSite },
-        NC.brandInstagram  && { platform:"instagram", text: NC.brandInstagram  },
-        NC.brandTwitter    && { platform:"twitter",   text: NC.brandTwitter    },
-        NC.brandTikTok     && { platform:"tiktok",    text: NC.brandTikTok     },
-        NC.brandFacebook   && { platform:"facebook",  text: NC.brandFacebook   },
-        NC.brandYoutube    && { platform:"youtube",   text: NC.brandYoutube    },
-      ].filter(Boolean);
-      if (detailItems.length > 0) {
-        const iconSz = 16, iconGap = 4, itemGap = 10;
-        ctx.font = `400 ${Rn(15)}px 'Cairo','Tajawal',sans-serif`;
-        ctx.textAlign = "left";
-        let posX = M;
-        for (const item of detailItems) {
-          drawPlatformBadge(ctx, item.platform, posX, footMid, iconSz);
-          posX += iconSz + iconGap;
-          ctx.fillText(item.text, posX, footMid);
-          posX += ctx.measureText(item.text).width + itemGap;
-        }
-      }
+    const allItems   = resolveFooterItems(NC);
+    const SOCIAL_IDS = ["instagram","twitter","tiktok"];
+    const VIDEO_IDS  = ["facebook","youtube"];
 
+    if (NC.brandFooterMode === "detailed") {
+      const iconSz = 16, iconGap = 4, itemGap = 10;
+      ctx.font = `400 ${Rn(15)}px 'Cairo','Tajawal',sans-serif`;
+      ctx.textAlign = "left";
+      let posX = M;
+      for (const item of allItems) {
+        drawPlatformBadge(ctx, item.id, posX, footMid, iconSz);
+        posX += iconSz + iconGap;
+        ctx.fillText(item.text, posX, footMid);
+        posX += ctx.measureText(item.text).width + itemGap;
+      }
     } else {
-      /* ── Compact (default): website → [social icons] → shortHandle → [video icons] → longName ── */
       const iconSz = 16, iconGap = 4, secGap = 16;
       ctx.font = `400 ${Rn(16)}px 'Cairo','Tajawal',sans-serif`;
       ctx.textAlign = "left";
       let posX = M;
 
-      /* Website text */
-      if (NC.brandFooterSite) {
-        ctx.fillText(NC.brandFooterSite, posX, footMid);
-        posX += ctx.measureText(NC.brandFooterSite).width + secGap;
-      }
+      const webItem   = allItems.find(i => i.id === "website");
+      const iconItems = allItems.filter(i => i.id !== "website");
+      const hasSocial = iconItems.some(i => SOCIAL_IDS.includes(i.id));
+      const hasVideo  = iconItems.some(i => VIDEO_IDS.includes(i.id));
 
-      /* Social icons cluster: IG, X, TikTok */
-      const socialPlats = [
-        NC.brandInstagram && "instagram",
-        NC.brandTwitter   && "twitter",
-        NC.brandTikTok    && "tiktok",
-      ].filter(Boolean);
-      for (const plat of socialPlats) {
-        drawPlatformBadge(ctx, plat, posX, footMid, iconSz);
+      if (webItem) {
+        ctx.fillText(webItem.text, posX, footMid);
+        posX += ctx.measureText(webItem.text).width + secGap;
+      }
+      for (const item of iconItems) {
+        drawPlatformBadge(ctx, item.id, posX, footMid, iconSz);
         posX += iconSz + iconGap;
       }
-      if (socialPlats.length > 0) { posX -= iconGap; posX += secGap; }
-
-      /* Short shared handle (once) */
-      if (NC.brandShortHandle) {
+      if (iconItems.length > 0) { posX -= iconGap; posX += secGap; }
+      if (hasSocial && NC.brandShortHandle) {
         ctx.fillText(NC.brandShortHandle, posX, footMid);
         posX += ctx.measureText(NC.brandShortHandle).width + secGap;
       }
-
-      /* Video/page icons cluster: FB, YT */
-      const videoPlats = [
-        NC.brandFacebook && "facebook",
-        NC.brandYoutube  && "youtube",
-      ].filter(Boolean);
-      for (const plat of videoPlats) {
-        drawPlatformBadge(ctx, plat, posX, footMid, iconSz);
-        posX += iconSz + iconGap;
-      }
-      if (videoPlats.length > 0) { posX -= iconGap; posX += secGap; }
-
-      /* Long page / org name */
-      if (NC.brandLongName) {
+      if (hasVideo && NC.brandLongName) {
         ctx.fillText(NC.brandLongName, posX, footMid);
       }
     }
 
-    /* Right: date (both modes) */
+    /* Right: date */
     ctx.font = `400 ${Rn(17)}px 'Cairo','Tajawal',sans-serif`;
     ctx.textAlign = "right"; ctx.direction = "rtl";
     ctx.fillText(String(NC.date || ""), W - M, footMid);
@@ -2992,16 +3031,46 @@ function NewsCardStudio({ onBack, theme, T }) {
                   />
 
                   {NC.showBranding && (
-                    <div style={{marginTop:10, display:"flex", flexDirection:"column", gap:8}}>
+                    <div style={{marginTop:10, display:"flex", flexDirection:"column", gap:10}}>
+
+                      {/* Identity presets */}
+                      <div>
+                        <div style={{fontSize:10, fontWeight:600, marginBottom:6,
+                          color: isDark?"rgba(255,255,255,.40)":"rgba(0,0,0,.40)",
+                          direction:"rtl"}}>هوية جاهزة</div>
+                        <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:5}}>
+                          {IDENTITY_PRESETS.map(preset => (
+                            <button key={preset.id}
+                              onClick={() => setNC(p => ({...p, ...preset.fields}))}
+                              style={{
+                                padding:"6px 4px", borderRadius:7, cursor:"pointer",
+                                fontSize:10, fontWeight:600, textAlign:"center",
+                                direction:"rtl",
+                                border:`1px solid ${
+                                  NC.brandIdentityPreset === preset.id
+                                    ? T.accent : T.inputBorder
+                                }`,
+                                background: NC.brandIdentityPreset === preset.id
+                                  ? isDark?"rgba(232,200,74,.15)":"rgba(232,200,74,.12)"
+                                  : T.btnBg,
+                                color: NC.brandIdentityPreset === preset.id
+                                  ? T.accent : T.btnText,
+                              }}>
+                              {preset.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
 
                       {/* Logo upload */}
                       <div>
-                        <div style={{fontSize:11, fontWeight:600,
+                        <div style={{fontSize:11, fontWeight:600, marginBottom:4,
                           color: isDark?"rgba(255,255,255,.45)":"rgba(0,0,0,.45)",
-                          marginBottom:4, direction:"rtl"}}>شعار الجهة</div>
+                          direction:"rtl"}}>شعار الجهة</div>
                         <label style={{
-                          display:"block", padding:"8px 10px", borderRadius:7, cursor:"pointer",
-                          textAlign:"center", border:`1px dashed ${T.inputBorder}`,
+                          display:"block", padding:"8px 10px", borderRadius:7,
+                          cursor:"pointer", textAlign:"center",
+                          border:`1px dashed ${T.inputBorder}`,
                           background:T.inputBg, fontSize:11,
                           color: ncBrandLogo ? "#10b981" : T.textMuted,
                         }}>
@@ -3020,35 +3089,30 @@ function NewsCardStudio({ onBack, theme, T }) {
                         )}
                       </div>
 
-                      {/* Header title */}
+                      {/* Header title + color */}
                       <div>
-                        <div style={{fontSize:11, fontWeight:600,
+                        <div style={{fontSize:11, fontWeight:600, marginBottom:4,
                           color: isDark?"rgba(255,255,255,.45)":"rgba(0,0,0,.45)",
-                          marginBottom:4, direction:"rtl"}}>
+                          direction:"rtl"}}>
                           {NC.template === "image" ? "نص التذييل اليميني" : "عنوان الهيدر"}
                         </div>
-                        <input value={NC.brandHeaderTitle||""} dir="rtl"
-                          onChange={e=>UN("brandHeaderTitle",e.target.value)}
-                          placeholder="أخبار كرة القدم"
-                          style={{...inp, fontSize:12}}/>
+                        <div style={{display:"flex", gap:6, alignItems:"center"}}>
+                          <input value={NC.brandHeaderTitle||""} dir="rtl"
+                            onChange={e=>UN("brandHeaderTitle",e.target.value)}
+                            placeholder="أخبار كرة القدم"
+                            style={{...inp, fontSize:12, flex:1}}/>
+                          <input type="color"
+                            value={NC.brandHeaderTitleColor||"#e8c84a"}
+                            onChange={e=>UN("brandHeaderTitleColor",e.target.value)}
+                            style={{
+                              width:30, height:30, border:"none", borderRadius:5,
+                              cursor:"pointer", background:"transparent",
+                              padding:2, flexShrink:0,
+                            }}/>
+                        </div>
                       </div>
 
-                      {/* Header title color */}
-                      <div style={{display:"flex", alignItems:"center",
-                        justifyContent:"space-between", gap:8}}>
-                        <div style={{fontSize:11, fontWeight:600,
-                          color: isDark?"rgba(255,255,255,.45)":"rgba(0,0,0,.45)",
-                          direction:"rtl"}}>لون النص</div>
-                        <input type="color"
-                          value={NC.brandHeaderTitleColor||"#e8c84a"}
-                          onChange={e=>UN("brandHeaderTitleColor",e.target.value)}
-                          style={{
-                            width:32, height:24, border:"none", borderRadius:5,
-                            cursor:"pointer", background:"transparent", padding:2,
-                          }}/>
-                      </div>
-
-                      {/* Footer display mode toggle */}
+                      {/* Footer display mode */}
                       <div>
                         <div style={{fontSize:11, fontWeight:600, marginBottom:6,
                           color: isDark?"rgba(255,255,255,.45)":"rgba(0,0,0,.45)",
@@ -3060,106 +3124,120 @@ function NewsCardStudio({ onBack, theme, T }) {
                         />
                       </div>
 
-                      {/* Website — common to both modes */}
+                      {/* Platform list: toggle + reorder + text field */}
                       <div>
-                        <div style={{fontSize:11, fontWeight:600, marginBottom:4,
-                          color: isDark?"rgba(255,255,255,.45)":"rgba(0,0,0,.45)",
-                          direction:"rtl"}}>الموقع / النطاق</div>
-                        <input value={NC.brandFooterSite||""} dir="ltr"
-                          onChange={e=>UN("brandFooterSite",e.target.value)}
-                          placeholder="ofa.om"
-                          style={{...inp, fontSize:12}}/>
-                      </div>
+                        <div style={{fontSize:10, fontWeight:600, marginBottom:6,
+                          color: isDark?"rgba(255,255,255,.40)":"rgba(0,0,0,.40)",
+                          direction:"rtl"}}>المنصات — ترتيب وتفعيل</div>
+                        {(NC.brandPlatforms || DEFAULT_PLATFORMS).map((p, i, arr) => {
+                          const meta  = PLAT_META[p.id];
+                          const field = PLAT_FIELD[p.id];
+                          return (
+                            <div key={p.id} style={{
+                              display:"flex", alignItems:"center", gap:4,
+                              marginBottom:5, opacity: p.on ? 1 : 0.45,
+                            }}>
+                              {/* Up / Down */}
+                              <div style={{display:"flex",flexDirection:"column",gap:1,flexShrink:0}}>
+                                <button
+                                  onClick={() => setNC(prev => {
+                                    const pl = [...(prev.brandPlatforms || DEFAULT_PLATFORMS)];
+                                    if (i > 0) { [pl[i-1],pl[i]] = [pl[i],pl[i-1]]; }
+                                    return {...prev, brandPlatforms:pl, brandIdentityPreset:""};
+                                  })}
+                                  disabled={i === 0}
+                                  style={{
+                                    width:14,height:14,padding:0,border:"none",
+                                    background:"transparent",
+                                    cursor:i===0?"default":"pointer",
+                                    color:i===0
+                                      ?isDark?"rgba(255,255,255,.15)":"rgba(0,0,0,.15)"
+                                      :isDark?"rgba(255,255,255,.55)":"rgba(0,0,0,.55)",
+                                    fontSize:9,lineHeight:1,display:"flex",
+                                    alignItems:"center",justifyContent:"center",
+                                  }}>▲</button>
+                                <button
+                                  onClick={() => setNC(prev => {
+                                    const pl = [...(prev.brandPlatforms || DEFAULT_PLATFORMS)];
+                                    if (i < pl.length-1) { [pl[i+1],pl[i]] = [pl[i],pl[i+1]]; }
+                                    return {...prev, brandPlatforms:pl, brandIdentityPreset:""};
+                                  })}
+                                  disabled={i === arr.length - 1}
+                                  style={{
+                                    width:14,height:14,padding:0,border:"none",
+                                    background:"transparent",
+                                    cursor:i===arr.length-1?"default":"pointer",
+                                    color:i===arr.length-1
+                                      ?isDark?"rgba(255,255,255,.15)":"rgba(0,0,0,.15)"
+                                      :isDark?"rgba(255,255,255,.55)":"rgba(0,0,0,.55)",
+                                    fontSize:9,lineHeight:1,display:"flex",
+                                    alignItems:"center",justifyContent:"center",
+                                  }}>▼</button>
+                              </div>
 
-                      {/* Compact-specific fields */}
-                      {(NC.brandFooterMode||"compact") === "compact" && (<>
-                        <div>
-                          <div style={{fontSize:11, fontWeight:600, marginBottom:4,
-                            color: isDark?"rgba(255,255,255,.45)":"rgba(0,0,0,.45)",
-                            direction:"rtl"}}>الحساب المختصر (IG / X / TikTok)</div>
-                          <input value={NC.brandShortHandle||""} dir="ltr"
-                            onChange={e=>UN("brandShortHandle",e.target.value)}
-                            placeholder="omanfa"
-                            style={{...inp, fontSize:12}}/>
-                        </div>
-
-                        <div>
-                          <div style={{fontSize:11, fontWeight:600, marginBottom:4,
-                            color: isDark?"rgba(255,255,255,.45)":"rgba(0,0,0,.45)",
-                            direction:"rtl"}}>الاسم الطويل / الصفحة (FB / YT)</div>
-                          <input value={NC.brandLongName||""} dir="ltr"
-                            onChange={e=>UN("brandLongName",e.target.value)}
-                            placeholder="oman football association"
-                            style={{...inp, fontSize:12}}/>
-                        </div>
-
-                        {/* Platform icon toggles */}
-                        <div style={{
-                          borderTop:`1px solid ${isDark?"rgba(255,255,255,.07)":"rgba(0,0,0,.07)"}`,
-                          paddingTop:8,
-                        }}>
-                          <div style={{fontSize:10, marginBottom:6, direction:"rtl",
-                            color: isDark?"rgba(255,255,255,.30)":"rgba(0,0,0,.30)"}}>
-                            أدخل قيمة لتفعيل أيقونة المنصة
-                          </div>
-                          {[
-                            ["brandInstagram","إنستغرام","#c13584","@handle"],
-                            ["brandTwitter",  "X / تويتر","#000",  "@handle"],
-                            ["brandTikTok",   "تيك توك",  "#010101","@handle"],
-                            ["brandFacebook", "فيسبوك",   "#1877f2","اسم الصفحة"],
-                            ["brandYoutube",  "يوتيوب",   "#ff0000","اسم القناة"],
-                          ].map(([key,label,color,ph]) => (
-                            <div key={key} style={{
-                              display:"flex", alignItems:"center", gap:6, marginBottom:5}}>
-                              <span style={{
-                                display:"inline-block", width:9, height:9,
-                                borderRadius:2, background:color, flexShrink:0,
-                              }}/>
-                              <span style={{
-                                fontSize:10, color: isDark?"rgba(255,255,255,.45)":"rgba(0,0,0,.45)",
-                                flex:"0 0 68px",
-                              }}>{label}</span>
-                              <input value={NC[key]||""} dir="ltr"
-                                onChange={e=>UN(key,e.target.value)}
-                                placeholder={ph}
+                              {/* On / Off toggle */}
+                              <button
+                                onClick={() => setNC(prev => {
+                                  const pl = (prev.brandPlatforms || DEFAULT_PLATFORMS)
+                                    .map((x,j) => j===i ? {...x,on:!x.on} : x);
+                                  return {...prev, brandPlatforms:pl, brandIdentityPreset:""};
+                                })}
                                 style={{
-                                  flex:1, fontSize:11, padding:"3px 7px",
-                                  borderRadius:5,
+                                  width:16,height:16,borderRadius:"50%",padding:0,
+                                  border:`2px solid ${p.on
+                                    ? meta.color
+                                    : isDark?"rgba(255,255,255,.25)":"rgba(0,0,0,.25)"}`,
+                                  background: p.on ? meta.color : "transparent",
+                                  cursor:"pointer",flexShrink:0,
+                                }}/>
+
+                              {/* Label */}
+                              <span style={{
+                                fontSize:10,fontWeight:600,minWidth:58,direction:"rtl",
+                                color:isDark?"rgba(255,255,255,.55)":"rgba(0,0,0,.55)",
+                              }}>{meta.label}</span>
+
+                              {/* Text field */}
+                              <input value={NC[field]||""} dir="ltr"
+                                onChange={e=>UN(field,e.target.value)}
+                                placeholder={meta.ph}
+                                style={{
+                                  flex:1,fontSize:11,padding:"3px 6px",borderRadius:5,
                                   border:`1px solid ${isDark?"rgba(255,255,255,.12)":"rgba(0,0,0,.12)"}`,
-                                  background: isDark?"rgba(255,255,255,.05)":"rgba(0,0,0,.03)",
-                                  color: isDark?"#e8e8f0":"#1a1a2e",
-                                  outline:"none",
+                                  background:isDark?"rgba(255,255,255,.05)":"rgba(0,0,0,.03)",
+                                  color:isDark?"#e8e8f0":"#1a1a2e",outline:"none",
                                 }}/>
                             </div>
-                          ))}
-                        </div>
-                      </>)}
+                          );
+                        })}
+                      </div>
 
-                      {/* Detailed-specific fields */}
-                      {(NC.brandFooterMode||"compact") === "detailed" && (<>
-                        {[
-                          ["brandInstagram","إنستغرام","#c13584","@handle"],
-                          ["brandTwitter",  "X / تويتر","#000",  "@handle"],
-                          ["brandTikTok",   "تيك توك",  "#010101","@handle"],
-                          ["brandFacebook", "فيسبوك",   "#1877f2",""],
-                          ["brandYoutube",  "يوتيوب",   "#ff0000",""],
-                        ].map(([key,label,color,ph]) => (
-                          <div key={key}>
-                            <div style={{fontSize:11, fontWeight:600, marginBottom:4,
-                              color: isDark?"rgba(255,255,255,.45)":"rgba(0,0,0,.45)",
-                              display:"flex", alignItems:"center", gap:5}}>
-                              <span style={{display:"inline-block",
-                                width:10, height:10, borderRadius:2, background:color,
-                                flexShrink:0}}/>
-                              {label}
-                            </div>
-                            <input value={NC[key]||""} dir="ltr"
-                              onChange={e=>UN(key,e.target.value)}
-                              placeholder={ph}
-                              style={{...inp, fontSize:12}}/>
+                      {/* Compact-only: short handle + long name */}
+                      {(NC.brandFooterMode||"compact") === "compact" && (
+                        <div style={{
+                          borderTop:`1px solid ${isDark?"rgba(255,255,255,.07)":"rgba(0,0,0,.07)"}`,
+                          paddingTop:8, display:"flex", flexDirection:"column", gap:8,
+                        }}>
+                          <div>
+                            <div style={{fontSize:11,fontWeight:600,marginBottom:4,
+                              color:isDark?"rgba(255,255,255,.45)":"rgba(0,0,0,.45)",
+                              direction:"rtl"}}>الحساب المختصر (IG / X / TikTok)</div>
+                            <input value={NC.brandShortHandle||""} dir="ltr"
+                              onChange={e=>UN("brandShortHandle",e.target.value)}
+                              placeholder="omanfa"
+                              style={{...inp,fontSize:12}}/>
                           </div>
-                        ))}
-                      </>)}
+                          <div>
+                            <div style={{fontSize:11,fontWeight:600,marginBottom:4,
+                              color:isDark?"rgba(255,255,255,.45)":"rgba(0,0,0,.45)",
+                              direction:"rtl"}}>الاسم الطويل / الصفحة (FB / YT)</div>
+                            <input value={NC.brandLongName||""} dir="ltr"
+                              onChange={e=>UN("brandLongName",e.target.value)}
+                              placeholder="oman football association"
+                              style={{...inp,fontSize:12}}/>
+                          </div>
+                        </div>
+                      )}
 
                     </div>
                   )}
