@@ -2085,7 +2085,10 @@ const DEFAULT_NC = {
   showBranding: false,
   brandHeaderTitle: "أخبار كرة القدم",
   brandHeaderTitleColor: "#e8c84a",
+  brandFooterMode: "compact",
   brandFooterSite: "ofa.om",
+  brandShortHandle: "omanfa",
+  brandLongName: "",
   brandInstagram: "@omanfa",
   brandTwitter: "",
   brandTikTok: "",
@@ -2470,38 +2473,83 @@ function drawLongTextCard(ctx, NC, bgImg, brandLogo = null) {
   const footMid = footY + FOOT_H / 2;
 
   if (NC.showBranding) {
-    /* Left: icon badge + handle for each platform that has a value */
-    const footItems = [
-      NC.brandFooterSite && { platform:"website",   text: NC.brandFooterSite },
-      NC.brandInstagram  && { platform:"instagram", text: NC.brandInstagram  },
-      NC.brandTwitter    && { platform:"twitter",   text: NC.brandTwitter    },
-      NC.brandTikTok     && { platform:"tiktok",    text: NC.brandTikTok     },
-      NC.brandFacebook   && { platform:"facebook",  text: NC.brandFacebook   },
-      NC.brandYoutube    && { platform:"youtube",   text: NC.brandYoutube    },
-    ].filter(Boolean);
+    ctx.save();
+    ctx.fillStyle = MUTED; ctx.textBaseline = "middle"; ctx.direction = "ltr";
 
-    if (footItems.length > 0) {
-      const iconSz = 18, iconGap = 5, itemGap = 12;
-      ctx.save();
-      ctx.font = `400 ${Rn(16)}px 'Cairo','Tajawal',sans-serif`;
-      ctx.fillStyle = MUTED;
-      ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.direction = "ltr";
-      let posX = M;
-      for (const item of footItems) {
-        drawPlatformBadge(ctx, item.platform, posX, footMid, iconSz);
-        posX += iconSz + iconGap;
-        const tw = ctx.measureText(item.text).width;
-        ctx.fillText(item.text, posX, footMid);
-        posX += tw + itemGap;
+    if (NC.brandFooterMode === "detailed") {
+      /* ── Detailed: icon + own handle per platform ── */
+      const detailItems = [
+        NC.brandFooterSite && { platform:"website",   text: NC.brandFooterSite },
+        NC.brandInstagram  && { platform:"instagram", text: NC.brandInstagram  },
+        NC.brandTwitter    && { platform:"twitter",   text: NC.brandTwitter    },
+        NC.brandTikTok     && { platform:"tiktok",    text: NC.brandTikTok     },
+        NC.brandFacebook   && { platform:"facebook",  text: NC.brandFacebook   },
+        NC.brandYoutube    && { platform:"youtube",   text: NC.brandYoutube    },
+      ].filter(Boolean);
+      if (detailItems.length > 0) {
+        const iconSz = 16, iconGap = 4, itemGap = 10;
+        ctx.font = `400 ${Rn(15)}px 'Cairo','Tajawal',sans-serif`;
+        ctx.textAlign = "left";
+        let posX = M;
+        for (const item of detailItems) {
+          drawPlatformBadge(ctx, item.platform, posX, footMid, iconSz);
+          posX += iconSz + iconGap;
+          ctx.fillText(item.text, posX, footMid);
+          posX += ctx.measureText(item.text).width + itemGap;
+        }
       }
-      ctx.restore();
+
+    } else {
+      /* ── Compact (default): website → [social icons] → shortHandle → [video icons] → longName ── */
+      const iconSz = 16, iconGap = 4, secGap = 16;
+      ctx.font = `400 ${Rn(16)}px 'Cairo','Tajawal',sans-serif`;
+      ctx.textAlign = "left";
+      let posX = M;
+
+      /* Website text */
+      if (NC.brandFooterSite) {
+        ctx.fillText(NC.brandFooterSite, posX, footMid);
+        posX += ctx.measureText(NC.brandFooterSite).width + secGap;
+      }
+
+      /* Social icons cluster: IG, X, TikTok */
+      const socialPlats = [
+        NC.brandInstagram && "instagram",
+        NC.brandTwitter   && "twitter",
+        NC.brandTikTok    && "tiktok",
+      ].filter(Boolean);
+      for (const plat of socialPlats) {
+        drawPlatformBadge(ctx, plat, posX, footMid, iconSz);
+        posX += iconSz + iconGap;
+      }
+      if (socialPlats.length > 0) { posX -= iconGap; posX += secGap; }
+
+      /* Short shared handle (once) */
+      if (NC.brandShortHandle) {
+        ctx.fillText(NC.brandShortHandle, posX, footMid);
+        posX += ctx.measureText(NC.brandShortHandle).width + secGap;
+      }
+
+      /* Video/page icons cluster: FB, YT */
+      const videoPlats = [
+        NC.brandFacebook && "facebook",
+        NC.brandYoutube  && "youtube",
+      ].filter(Boolean);
+      for (const plat of videoPlats) {
+        drawPlatformBadge(ctx, plat, posX, footMid, iconSz);
+        posX += iconSz + iconGap;
+      }
+      if (videoPlats.length > 0) { posX -= iconGap; posX += secGap; }
+
+      /* Long page / org name */
+      if (NC.brandLongName) {
+        ctx.fillText(NC.brandLongName, posX, footMid);
+      }
     }
 
-    /* Right: date */
-    ctx.save();
+    /* Right: date (both modes) */
     ctx.font = `400 ${Rn(17)}px 'Cairo','Tajawal',sans-serif`;
-    ctx.fillStyle = MUTED; ctx.textAlign = "right";
-    ctx.textBaseline = "middle"; ctx.direction = "rtl";
+    ctx.textAlign = "right"; ctx.direction = "rtl";
     ctx.fillText(String(NC.date || ""), W - M, footMid);
     ctx.restore();
   } else {
@@ -2900,96 +2948,118 @@ function NewsCardStudio({ onBack, theme, T }) {
                             }}/>
                         </div>
 
-                        {/* Footer website */}
+                        {/* ── Footer display mode toggle ── */}
                         <div>
-                          <div style={{fontSize:11, fontWeight:600,
+                          <div style={{fontSize:11, fontWeight:600, marginBottom:6,
                             color: isDark?"rgba(255,255,255,.45)":"rgba(0,0,0,.45)",
-                            marginBottom:4, direction:"rtl"}}>الموقع / النطاق</div>
+                            direction:"rtl"}}>طريقة عرض حسابات التواصل</div>
+                          <BtnGroup
+                            options={[["compact","مختصر"],["detailed","تفصيلي"]]}
+                            active={NC.brandFooterMode||"compact"}
+                            onSelect={v => UN("brandFooterMode", v)}
+                          />
+                        </div>
+
+                        {/* Website — common to both modes */}
+                        <div>
+                          <div style={{fontSize:11, fontWeight:600, marginBottom:4,
+                            color: isDark?"rgba(255,255,255,.45)":"rgba(0,0,0,.45)",
+                            direction:"rtl"}}>الموقع / النطاق</div>
                           <input value={NC.brandFooterSite||""} dir="ltr"
                             onChange={e=>UN("brandFooterSite",e.target.value)}
                             placeholder="ofa.om"
                             style={{...inp, fontSize:12}}/>
                         </div>
 
-                        {/* Instagram */}
-                        <div>
-                          <div style={{fontSize:11, fontWeight:600, marginBottom:4,
-                            color: isDark?"rgba(255,255,255,.45)":"rgba(0,0,0,.45)",
-                            display:"flex", alignItems:"center", gap:5}}>
-                            <span style={{display:"inline-block",
-                              width:10, height:10, borderRadius:2, background:"#c13584",
-                              flexShrink:0}}/>
-                            إنستغرام
+                        {/* ── Compact-specific fields ── */}
+                        {(NC.brandFooterMode||"compact") === "compact" && (<>
+                          <div>
+                            <div style={{fontSize:11, fontWeight:600, marginBottom:4,
+                              color: isDark?"rgba(255,255,255,.45)":"rgba(0,0,0,.45)",
+                              direction:"rtl"}}>الحساب المختصر (IG / X / TikTok)</div>
+                            <input value={NC.brandShortHandle||""} dir="ltr"
+                              onChange={e=>UN("brandShortHandle",e.target.value)}
+                              placeholder="omanfa"
+                              style={{...inp, fontSize:12}}/>
                           </div>
-                          <input value={NC.brandInstagram||""} dir="ltr"
-                            onChange={e=>UN("brandInstagram",e.target.value)}
-                            placeholder="@handle"
-                            style={{...inp, fontSize:12}}/>
-                        </div>
 
-                        {/* X / Twitter */}
-                        <div>
-                          <div style={{fontSize:11, fontWeight:600, marginBottom:4,
-                            color: isDark?"rgba(255,255,255,.45)":"rgba(0,0,0,.45)",
-                            display:"flex", alignItems:"center", gap:5}}>
-                            <span style={{display:"inline-block",
-                              width:10, height:10, borderRadius:2, background:"#000",
-                              flexShrink:0}}/>
-                            X / تويتر
+                          <div>
+                            <div style={{fontSize:11, fontWeight:600, marginBottom:4,
+                              color: isDark?"rgba(255,255,255,.45)":"rgba(0,0,0,.45)",
+                              direction:"rtl"}}>الاسم الطويل / الصفحة (FB / YT)</div>
+                            <input value={NC.brandLongName||""} dir="ltr"
+                              onChange={e=>UN("brandLongName",e.target.value)}
+                              placeholder="oman football association"
+                              style={{...inp, fontSize:12}}/>
                           </div>
-                          <input value={NC.brandTwitter||""} dir="ltr"
-                            onChange={e=>UN("brandTwitter",e.target.value)}
-                            placeholder="@handle"
-                            style={{...inp, fontSize:12}}/>
-                        </div>
 
-                        {/* TikTok */}
-                        <div>
-                          <div style={{fontSize:11, fontWeight:600, marginBottom:4,
-                            color: isDark?"rgba(255,255,255,.45)":"rgba(0,0,0,.45)",
-                            display:"flex", alignItems:"center", gap:5}}>
-                            <span style={{display:"inline-block",
-                              width:10, height:10, borderRadius:2, background:"#010101",
-                              flexShrink:0}}/>
-                            تيك توك
+                          {/* Platform icon toggles — enter any value to show icon */}
+                          <div style={{
+                            borderTop:`1px solid ${isDark?"rgba(255,255,255,.07)":"rgba(0,0,0,.07)"}`,
+                            paddingTop:8,
+                          }}>
+                            <div style={{fontSize:10, marginBottom:6, direction:"rtl",
+                              color: isDark?"rgba(255,255,255,.30)":"rgba(0,0,0,.30)"}}>
+                              أدخل قيمة لتفعيل أيقونة المنصة
+                            </div>
+                            {[
+                              ["brandInstagram","إنستغرام","#c13584","@handle"],
+                              ["brandTwitter",  "X / تويتر","#000",  "@handle"],
+                              ["brandTikTok",   "تيك توك",  "#010101","@handle"],
+                              ["brandFacebook", "فيسبوك",   "#1877f2","اسم الصفحة"],
+                              ["brandYoutube",  "يوتيوب",   "#ff0000","اسم القناة"],
+                            ].map(([key,label,color,ph]) => (
+                              <div key={key} style={{
+                                display:"flex", alignItems:"center", gap:6, marginBottom:5}}>
+                                <span style={{
+                                  display:"inline-block", width:9, height:9,
+                                  borderRadius:2, background:color, flexShrink:0,
+                                }}/>
+                                <span style={{
+                                  fontSize:10, color: isDark?"rgba(255,255,255,.45)":"rgba(0,0,0,.45)",
+                                  flex:"0 0 68px",
+                                }}>{label}</span>
+                                <input value={NC[key]||""} dir="ltr"
+                                  onChange={e=>UN(key,e.target.value)}
+                                  placeholder={ph}
+                                  style={{
+                                    flex:1, fontSize:11, padding:"3px 7px",
+                                    borderRadius:5,
+                                    border:`1px solid ${isDark?"rgba(255,255,255,.12)":"rgba(0,0,0,.12)"}`,
+                                    background: isDark?"rgba(255,255,255,.05)":"rgba(0,0,0,.03)",
+                                    color: isDark?"#e8e8f0":"#1a1a2e",
+                                    outline:"none",
+                                  }}/>
+                              </div>
+                            ))}
                           </div>
-                          <input value={NC.brandTikTok||""} dir="ltr"
-                            onChange={e=>UN("brandTikTok",e.target.value)}
-                            placeholder="@handle"
-                            style={{...inp, fontSize:12}}/>
-                        </div>
+                        </>)}
 
-                        {/* Facebook */}
-                        <div>
-                          <div style={{fontSize:11, fontWeight:600, marginBottom:4,
-                            color: isDark?"rgba(255,255,255,.45)":"rgba(0,0,0,.45)",
-                            display:"flex", alignItems:"center", gap:5}}>
-                            <span style={{display:"inline-block",
-                              width:10, height:10, borderRadius:2, background:"#1877f2",
-                              flexShrink:0}}/>
-                            فيسبوك (اختياري)
-                          </div>
-                          <input value={NC.brandFacebook||""} dir="ltr"
-                            onChange={e=>UN("brandFacebook",e.target.value)}
-                            placeholder=""
-                            style={{...inp, fontSize:12}}/>
-                        </div>
-
-                        {/* YouTube */}
-                        <div>
-                          <div style={{fontSize:11, fontWeight:600, marginBottom:4,
-                            color: isDark?"rgba(255,255,255,.45)":"rgba(0,0,0,.45)",
-                            display:"flex", alignItems:"center", gap:5}}>
-                            <span style={{display:"inline-block",
-                              width:10, height:10, borderRadius:2, background:"#ff0000",
-                              flexShrink:0}}/>
-                            يوتيوب (اختياري)
-                          </div>
-                          <input value={NC.brandYoutube||""} dir="ltr"
-                            onChange={e=>UN("brandYoutube",e.target.value)}
-                            placeholder=""
-                            style={{...inp, fontSize:12}}/>
-                        </div>
+                        {/* ── Detailed-specific fields ── */}
+                        {(NC.brandFooterMode||"compact") === "detailed" && (<>
+                          {[
+                            ["brandInstagram","إنستغرام","#c13584","@handle"],
+                            ["brandTwitter",  "X / تويتر","#000",  "@handle"],
+                            ["brandTikTok",   "تيك توك",  "#010101","@handle"],
+                            ["brandFacebook", "فيسبوك",   "#1877f2",""],
+                            ["brandYoutube",  "يوتيوب",   "#ff0000",""],
+                          ].map(([key,label,color,ph]) => (
+                            <div key={key}>
+                              <div style={{fontSize:11, fontWeight:600, marginBottom:4,
+                                color: isDark?"rgba(255,255,255,.45)":"rgba(0,0,0,.45)",
+                                display:"flex", alignItems:"center", gap:5}}>
+                                <span style={{display:"inline-block",
+                                  width:10, height:10, borderRadius:2, background:color,
+                                  flexShrink:0}}/>
+                                {label}
+                              </div>
+                              <input value={NC[key]||""} dir="ltr"
+                                onChange={e=>UN(key,e.target.value)}
+                                placeholder={ph}
+                                style={{...inp, fontSize:12}}/>
+                            </div>
+                          ))}
+                        </>)}
 
                       </div>
                     )}
