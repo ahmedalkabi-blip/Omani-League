@@ -2312,18 +2312,20 @@ function drawNewsCard(ctx, NC, bgImg) {
     }
   }
 
-  /* ── 8. FOOTER ZONE ─────────────────────────────────────────────────── */
-  const footY = H - FOOT_H;
-  /* Gold separator line */
-  ctx.save();
-  ctx.strokeStyle = hexAlpha(ac, .35); ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(M, footY); ctx.lineTo(W - M, footY); ctx.stroke();
-  /* Website / footer text — tinted with headColor for preset consistency */
-  ctx.font = `400 ${Rn(19)}px 'Cairo','Tajawal',sans-serif`;
-  ctx.fillStyle = hexAlpha(NC.headColor || "#ffffff", 0.35);
-  ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.direction = "ltr";
-  ctx.fillText(NC.footer || "", W / 2, footY + FOOT_H / 2);
-  ctx.restore();
+  /* ── 8. FOOTER ZONE (shown only when identity is ON) ───────────────── */
+  if (NC.showBranding) {
+    const footY = H - FOOT_H;
+    ctx.save();
+    /* Gold separator line */
+    ctx.strokeStyle = hexAlpha(ac, .35); ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(M, footY); ctx.lineTo(W - M, footY); ctx.stroke();
+    /* Website / footer text — tinted with headColor for preset consistency */
+    ctx.font = `400 ${Rn(19)}px 'Cairo','Tajawal',sans-serif`;
+    ctx.fillStyle = hexAlpha(NC.headColor || "#ffffff", 0.35);
+    ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.direction = "ltr";
+    ctx.fillText(NC.footer || "", W / 2, footY + FOOT_H / 2);
+    ctx.restore();
+  }
 }
 
 /* ── Long-text editorial card renderer ──────────────────────────────────── */
@@ -2898,7 +2900,27 @@ function NewsCardStudio({ onBack, theme, T }) {
                   </div>
                 )}
 
-                {/* ── 2b. هوية البطاقة (longtext only) ── */}
+                {/* ── 2b. هوية البطاقة (image only: footer toggle) ── */}
+                {NC.template === "image" && (
+                  <div>
+                    <SH label="هوية البطاقة" />
+                    <BtnGroup
+                      options={[["true","إظهار الهوية"],["false","إخفاء"]]}
+                      active={String(NC.showBranding)}
+                      onSelect={v => UN("showBranding", v === "true")}
+                    />
+                    {NC.showBranding && (
+                      <div style={{
+                        marginTop:8, fontSize:10, direction:"rtl",
+                        color: isDark?"rgba(255,255,255,.30)":"rgba(0,0,0,.30)",
+                      }}>
+                        يمكن تعديل نص التذييل في قسم "بيانات الخبر"
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* ── 2c. هوية البطاقة (longtext only) ── */}
                 {NC.template === "longtext" && (
                   <div>
                     <SH label="هوية البطاقة" />
